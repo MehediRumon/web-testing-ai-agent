@@ -10,24 +10,18 @@ public class ValidationService : IValidationService
         await Task.CompletedTask;
         var errors = new List<ValidationError>();
 
-        // FR-INPUT-01: Objective validation (min 5 chars, max 4000)
-        var objectiveErrors = await ValidateObjectiveAsync(request.Objective);
-        errors.AddRange(objectiveErrors);
+        // FR-INPUT-01: Objective validation (min 5 chars, max 4000) - OPTIONAL for auto-discovery
+        if (!string.IsNullOrWhiteSpace(request.Objective))
+        {
+            var objectiveErrors = await ValidateObjectiveAsync(request.Objective);
+            errors.AddRange(objectiveErrors);
+        }
 
-        // FR-INPUT-02: BaseUrl validation
+        // FR-INPUT-02: BaseUrl validation - REQUIRED
         var baseUrlErrors = await ValidateBaseUrlAsync(request.BaseUrl);
         errors.AddRange(baseUrlErrors);
 
-        // FR-INPUT-06: Missing required fields
-        if (string.IsNullOrWhiteSpace(request.Objective))
-        {
-            errors.Add(new ValidationError
-            {
-                Field = nameof(request.Objective),
-                Message = "Objective is required"
-            });
-        }
-
+        // FR-INPUT-06: BaseUrl is required, but objective is optional (auto-generated if not provided)
         if (string.IsNullOrWhiteSpace(request.BaseUrl))
         {
             errors.Add(new ValidationError

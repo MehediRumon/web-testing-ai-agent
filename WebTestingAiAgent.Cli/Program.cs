@@ -12,9 +12,9 @@ class Program
 
         // ai-agent plan command
         var planCommand = new Command("plan", "Create a test plan from objective");
-        var objectiveOption = new Option<string>("--objective", "Natural language test objective")
+        var objectiveOption = new Option<string>("--objective", "Natural language test objective (optional - will auto-generate if not provided)")
         {
-            IsRequired = true
+            IsRequired = false
         };
         var baseUrlOption = new Option<string>("--baseUrl", "Base URL of the application to test")
         {
@@ -28,7 +28,7 @@ class Program
         planCommand.AddOption(configOption);
         planCommand.AddOption(outputOption);
 
-        planCommand.SetHandler(async (string objective, string baseUrl, FileInfo? config, FileInfo output) =>
+        planCommand.SetHandler(async (string? objective, string baseUrl, FileInfo? config, FileInfo output) =>
         {
             await HandlePlanCommand(objective, baseUrl, config, output);
         }, objectiveOption, baseUrlOption, configOption, outputOption);
@@ -76,10 +76,12 @@ class Program
         return await rootCommand.InvokeAsync(args);
     }
 
-    static async Task HandlePlanCommand(string objective, string baseUrl, FileInfo? configFile, FileInfo outputFile)
+    static async Task HandlePlanCommand(string? objective, string baseUrl, FileInfo? configFile, FileInfo outputFile)
     {
         try
         {
+            // Use PlannerService for enhanced plan generation
+            objective = objective ?? "Automatically test basic functionality of the web application";
             Console.WriteLine($"Creating plan for objective: {objective}");
             Console.WriteLine($"Base URL: {baseUrl}");
 
@@ -91,28 +93,9 @@ class Program
                 config = JsonSerializer.Deserialize<AgentConfig>(configJson) ?? new AgentConfig();
             }
 
-            // Create basic plan
-            var plan = new PlanJson
-            {
-                RunId = Guid.NewGuid().ToString(),
-                BaseUrl = baseUrl,
-                Objective = objective,
-                TimeBudgetSeconds = config.Exploration.TimeBudgetSec,
-                ExplorationDepth = config.Exploration.MaxDepth,
-                Steps = new List<TestStep>
-                {
-                    new TestStep
-                    {
-                        Id = "navigate-01",
-                        Action = "navigate",
-                        Target = new Target
-                        {
-                            Primary = new Locator { By = "url", Value = baseUrl }
-                        },
-                        TimeoutMs = config.ExplicitTimeoutMs
-                    }
-                }
-            };
+            // Use PlannerService to create enhanced plan with auto-discovery
+            var plannerService = new WebTestingAiAgent.Api.Services.PlannerService();
+            var plan = await plannerService.CreatePlanAsync(objective, baseUrl, config);
 
             // Save plan to file
             var planJson = JsonSerializer.Serialize(plan, new JsonSerializerOptions
@@ -123,6 +106,7 @@ class Program
 
             await File.WriteAllTextAsync(outputFile.FullName, planJson);
             Console.WriteLine($"Plan saved to: {outputFile.FullName}");
+            Console.WriteLine($"Generated {plan.Steps.Count} test steps with auto-discovery");
         }
         catch (Exception ex)
         {
