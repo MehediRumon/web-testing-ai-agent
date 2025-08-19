@@ -1,0 +1,27 @@
+{
+  "runId": "bf63518e-f59a-405f-845d-da0dd110c239",
+  "baseUrl": "https://example.com",
+  "objective": "Test basic functionality",
+  "timeBudgetSeconds": 600,
+  "explorationDepth": 2,
+  "steps": [
+    {
+      "id": "navigate-01",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://example.com"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": []
+      }
+    }
+  ]
+}
