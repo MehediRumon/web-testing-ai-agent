@@ -30,8 +30,52 @@ public class RunManagerService : IRunManager
 
         _runs[runId] = runStatus;
 
-        // Start execution in background
-        _ = Task.Run(() => ExecuteRunAsync(runId, request));
+        // Start execution in background with better error handling
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await ExecuteRunAsync(runId, request);
+            }
+            catch (Exception ex)
+            {
+                // Ensure run remains in dictionary even if ExecuteRunAsync fails completely
+                if (_runs.TryGetValue(runId, out var failedRunStatus))
+                {
+                    failedRunStatus.Status = "error";
+                    failedRunStatus.CompletedAt = DateTime.UtcNow;
+                    failedRunStatus.Progress = 100;
+                    
+                    // Create a simple error report
+                    _reports[runId] = new RunReport
+                    {
+                        RunId = runId,
+                        Objective = request.Objective ?? "Unknown",
+                        Summary = new RunSummary
+                        {
+                            Passed = 0,
+                            Failed = 1,
+                            Skipped = 0,
+                            DurationSec = (int)(DateTime.UtcNow - failedRunStatus.CreatedAt).TotalSeconds
+                        },
+                        Results = new List<StepResult>
+                        {
+                            new StepResult
+                            {
+                                StepId = "execution-error",
+                                Status = "failed",
+                                Start = failedRunStatus.CreatedAt,
+                                End = DateTime.UtcNow,
+                                Error = new StepError { Message = $"Execution failed: {ex.Message}" },
+                                Evidence = new Evidence()
+                            }
+                        },
+                        Env = new RunEnvironment(),
+                        Analytics = new RunAnalytics()
+                    };
+                }
+            }
+        });
         
         return runId;
     }
@@ -42,15 +86,19 @@ public class RunManagerService : IRunManager
         
         try
         {
-            // Update status to running
-            runStatus.Status = "running";
+            // Update status to planning
+            runStatus.Status = "planning";
             runStatus.StartedAt = DateTime.UtcNow;
             runStatus.Progress = 10;
 
             // Generate plan
             var config = request.Config ?? new AgentConfig();
             var plan = await _plannerService.CreatePlanAsync(request.Objective ?? "", request.BaseUrl, config);
-            runStatus.Progress = 20;
+            runStatus.Progress = 30;
+
+            // Update status to executing
+            runStatus.Status = "executing";
+            runStatus.Progress = 40;
 
             // Execute plan
             var stepResults = await _executorService.ExecutePlanAsync(plan, config);
@@ -88,7 +136,8 @@ public class RunManagerService : IRunManager
         }
         catch (Exception ex)
         {
-            runStatus.Status = "failed";
+            // Don't immediately mark as failed - keep it visible for troubleshooting
+            runStatus.Status = "error";
             runStatus.CompletedAt = DateTime.UtcNow;
             runStatus.Progress = 100;
             
@@ -186,6 +235,7 @@ public class RunManagerService : IRunManager
         await Task.CompletedTask;
         return _runs.Values
             .Where(r => r.Status != "completed" && r.Status != "cancelled" && r.Status != "failed" && r.Status != "completed_with_failures")
+            .OrderByDescending(r => r.CreatedAt)
             .ToList();
     }
 }

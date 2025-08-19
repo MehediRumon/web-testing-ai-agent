@@ -22,10 +22,10 @@ builder.Services.AddCors(options =>
 });
 
 // Register application services
-builder.Services.AddScoped<IRunManager, RunManagerService>();
+builder.Services.AddSingleton<IRunManager, RunManagerService>();
 builder.Services.AddScoped<IValidationService, ValidationService>();
-builder.Services.AddScoped<IPlannerService, PlannerService>();
-builder.Services.AddScoped<IExecutorService, ExecutorService>();
+builder.Services.AddSingleton<IPlannerService, PlannerService>();
+builder.Services.AddSingleton<IExecutorService, ExecutorService>();
 builder.Services.AddScoped<IAssertionService, AssertionService>();
 builder.Services.AddScoped<IHealingService, HealingService>();
 builder.Services.AddScoped<IReportingService, ReportingService>();
