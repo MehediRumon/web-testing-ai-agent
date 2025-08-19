@@ -1,7 +1,7 @@
 {
-  "runId": "502401df-e05d-4b6d-95c7-a7f4b531bc92",
-  "baseUrl": "https://example.com",
-  "objective": "Test functionality",
+  "runId": "aacc96ec-b178-45d5-a057-ceeae3569ff5",
+  "baseUrl": "https://httpbin.org",
+  "objective": "Test basic functionality",
   "timeBudgetSeconds": 600,
   "explorationDepth": 2,
   "steps": [
@@ -11,7 +11,7 @@
       "target": {
         "primary": {
           "by": "url",
-          "value": "https://example.com"
+          "value": "https://httpbin.org"
         },
         "fallbacks": [],
         "fingerprint": null
@@ -106,7 +106,7 @@
       "target": {
         "primary": {
           "by": "url",
-          "value": "https://example.com"
+          "value": "https://httpbin.org"
         },
         "fallbacks": [],
         "fingerprint": null
@@ -166,7 +166,7 @@
       "target": {
         "primary": {
           "by": "url",
-          "value": "https://example.com"
+          "value": "https://httpbin.org"
         },
         "fallbacks": [],
         "fingerprint": null
@@ -226,7 +226,7 @@
       "target": {
         "primary": {
           "by": "url",
-          "value": "https://example.com"
+          "value": "https://httpbin.org"
         },
         "fallbacks": [],
         "fingerprint": null
@@ -286,7 +286,7 @@
       "target": {
         "primary": {
           "by": "url",
-          "value": "https://example.com"
+          "value": "https://httpbin.org"
         },
         "fallbacks": [],
         "fingerprint": null
@@ -346,7 +346,7 @@
       "target": {
         "primary": {
           "by": "url",
-          "value": "https://example.com"
+          "value": "https://httpbin.org"
         },
         "fallbacks": [],
         "fingerprint": null
