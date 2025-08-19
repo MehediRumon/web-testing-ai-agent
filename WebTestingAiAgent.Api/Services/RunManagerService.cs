@@ -115,7 +115,7 @@ public class RunManagerService : IRunManager
                 Env = new RunEnvironment
                 {
                     Browser = "chromium",
-                    Headless = true,
+                    Headless = config.Headless,
                     BaseUrl = plan.BaseUrl
                 },
                 Results = stepResults,
