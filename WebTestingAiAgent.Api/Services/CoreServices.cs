@@ -94,21 +94,27 @@ public class PlannerService : IPlannerService
             Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@basic" } }
         });
 
-        // 2. Verify main banner/header visibility
+        // 2. Verify main banner/header visibility (optional test that won't fail the run)
         steps.Add(new TestStep
         {
             Id = $"step-{stepCounter++:D3}",
             Action = "assert",
             Target = new Target
             {
-                Primary = new Locator { By = "css", Value = "header, .header, #header, h1, .banner" }
+                Primary = new Locator { By = "css", Value = "header, .header, #header, h1, .banner" },
+                Fallbacks = new List<Locator>
+                {
+                    new Locator { By = "css", Value = "h1, h2, h3" },
+                    new Locator { By = "css", Value = "nav, .nav, .navbar" },
+                    new Locator { By = "css", Value = ".logo, .brand, .site-title" }
+                }
             },
             Assertions = new List<Assertion>
             {
                 new Assertion { Type = "elementVisible", Value = "true" }
             },
             TimeoutMs = 5000,
-            Metadata = new StepMetadata { Tags = new List<string> { "@visibility", "@basic" } }
+            Metadata = new StepMetadata { Tags = new List<string> { "@visibility", "@basic", "@optional" } }
         });
 
         // 3. Test navigation links
@@ -124,7 +130,8 @@ public class PlannerService : IPlannerService
                     Fallbacks = new List<Locator>
                     {
                         new Locator { By = "partialLinkText", Value = link },
-                        new Locator { By = "css", Value = $"a[href*='{link.ToLower()}']" }
+                        new Locator { By = "css", Value = $"a[href*='{link.ToLower()}']" },
+                        new Locator { By = "xpath", Value = $"//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{link.ToLower()}')]" }
                     }
                 },
                 Assertions = new List<Assertion>
@@ -133,7 +140,7 @@ public class PlannerService : IPlannerService
                     new Assertion { Type = "elementVisible", Value = "body" }
                 },
                 TimeoutMs = 10000,
-                Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@links" } }
+                Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@links", "@optional" } }
             });
 
             // Navigate back to main page
@@ -182,9 +189,10 @@ public class PlannerService : IPlannerService
                 Action = "click",
                 Target = new Target
                 {
-                    Primary = new Locator { By = "css", Value = "input[type='submit'], button[type='submit'], button:contains('Submit')" },
+                    Primary = new Locator { By = "css", Value = "input[type='submit'], button[type='submit']" },
                     Fallbacks = new List<Locator>
                     {
+                        new Locator { By = "xpath", Value = "//button[contains(text(), 'Submit')]" },
                         new Locator { By = "css", Value = "button" },
                         new Locator { By = "css", Value = "[type='submit']" }
                     }
@@ -207,15 +215,16 @@ public class PlannerService : IPlannerService
                 Action = "click",
                 Target = new Target
                 {
-                    Primary = new Locator { By = "css", Value = $"button:contains('{button}'), input[value='{button}']" },
+                    Primary = new Locator { By = "css", Value = $"input[value='{button}']" },
                     Fallbacks = new List<Locator>
                     {
+                        new Locator { By = "xpath", Value = $"//button[contains(text(), '{button}')]" },
                         new Locator { By = "partialLinkText", Value = button },
                         new Locator { By = "css", Value = $"[title*='{button}']" }
                     }
                 },
                 TimeoutMs = 5000,
-                Metadata = new StepMetadata { Tags = new List<string> { "@buttons", "@interaction" } }
+                Metadata = new StepMetadata { Tags = new List<string> { "@buttons", "@interaction", "@optional" } }
             });
         }
 
