@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WebTestingAiAgent.Core\WebTestingAiAgent.Core.csproj" />
+    <ProjectReference Include="..\WebTestingAiAgent.Api\WebTestingAiAgent.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
