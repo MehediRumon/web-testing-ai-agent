@@ -1,7 +1,7 @@
 {
-  "runId": "502401df-e05d-4b6d-95c7-a7f4b531bc92",
+  "runId": "f75d40ab-fcc1-483b-afa9-63080fe6c16c",
   "baseUrl": "https://example.com",
-  "objective": "Test functionality",
+  "objective": "Test basic functionality",
   "timeBudgetSeconds": 600,
   "explorationDepth": 2,
   "steps": [

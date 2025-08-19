@@ -465,7 +465,7 @@ public class ExecutorService : IExecutorService
 
         try
         {
-            // Note: Selenium doesn't have built-in console/network monitoring like Playwright
+            // Note: Selenium doesn't have built-in console/network monitoring capabilities
             // These would need to be implemented through browser logs if needed
 
             Console.WriteLine($"Executing step: {step.Id} - {step.Action}");
@@ -531,7 +531,7 @@ public class ExecutorService : IExecutorService
         
         driver.Navigate().GoToUrl(step.Target.Primary.Value);
         
-        // Wait a bit for the page to stabilize (similar to NetworkIdle in Playwright)
+        // Wait a bit for the page to stabilize (similar to network idle waiting)
         await Task.Delay(1000);
     }
 
