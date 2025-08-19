@@ -193,7 +193,7 @@ public class RunManagerService : IRunManager
             Failed = results.Count(r => r.Status == "failed"),
             Skipped = results.Count(r => r.Status == "skipped"),
             DurationSec = results.Any() ? 
-                (int)(results.Max(r => r.End) - results.Min(r => r.Start)).TotalSeconds : 0
+                Math.Max(1, (int)Math.Round((results.Max(r => r.End) - results.Min(r => r.Start)).TotalSeconds)) : 0
         };
     }
 
