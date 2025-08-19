@@ -54,6 +54,9 @@
                 <div class="form-check">
                     <input type="checkbox" id="headless" class="form-check-input" @bind="config.Headless" />
                     <label for="headless" class="form-check-label">Headless Mode</label>
+                    <div class="form-text">
+                        When unchecked, you'll see the browser window during test execution. Check this box to run tests invisibly in the background.
+                    </div>
                 </div>
                 <div class="form-check">
                     <input type="checkbox" id="captureNetwork" class="form-check-input" @bind="config.Evidence.CaptureNetwork" />

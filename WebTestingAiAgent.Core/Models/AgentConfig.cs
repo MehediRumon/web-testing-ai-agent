@@ -40,7 +40,7 @@ public class SecurityConfig
 public class AgentConfig
 {
     public string Browser { get; set; } = "chrome";
-    public bool Headless { get; set; } = true;
+    public bool Headless { get; set; } = false; // Changed to false so users can see browser by default
     public int ExplicitTimeoutMs { get; set; } = 10000;
     public RetryPolicy RetryPolicy { get; set; } = new();
     public int Parallel { get; set; } = 4;
