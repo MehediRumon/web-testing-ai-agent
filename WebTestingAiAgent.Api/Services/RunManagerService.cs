@@ -250,8 +250,11 @@ public class RunManagerService : IRunManager
     public async Task<List<RunStatus>> GetActiveRunsAsync()
     {
         await Task.CompletedTask;
+        var cutoffTime = DateTime.UtcNow.AddMinutes(-10); // Show runs from the last 10 minutes
         return _runs.Values
-            .Where(r => r.Status != "completed" && r.Status != "cancelled" && r.Status != "failed" && r.Status != "completed_with_failures")
+            .Where(r => r.Status != "cancelled" && r.Status != "failed" && 
+                       (r.Status != "completed" && r.Status != "completed_with_failures" || 
+                        (r.CompletedAt ?? r.CreatedAt) > cutoffTime))
             .OrderByDescending(r => r.CreatedAt)
             .ToList();
     }

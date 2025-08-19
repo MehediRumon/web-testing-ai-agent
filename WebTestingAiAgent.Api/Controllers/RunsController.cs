@@ -59,7 +59,7 @@ public class RunsController : ControllerBase
         try
         {
             var status = await _runManager.GetRunStatusAsync(runId);
-            if (status == null)
+            if (status.Status == "not_found")
             {
                 return NotFound(new ApiErrorResponse
                 {
