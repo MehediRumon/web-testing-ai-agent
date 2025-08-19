@@ -70,7 +70,12 @@ public class RunManagerService : IRunManager
                                 Evidence = new Evidence()
                             }
                         },
-                        Env = new RunEnvironment(),
+                        Env = new RunEnvironment
+                        {
+                            Browser = "chromium",
+                            Headless = (request.Config ?? new AgentConfig()).Headless,
+                            BaseUrl = request.BaseUrl
+                        },
                         Analytics = new RunAnalytics()
                     };
                 }
@@ -145,6 +150,13 @@ public class RunManagerService : IRunManager
             _reports[runId] = new RunReport
             {
                 RunId = runId,
+                Objective = "Error during execution",
+                Env = new RunEnvironment
+                {
+                    Browser = "chromium",
+                    Headless = (request.Config ?? new AgentConfig()).Headless,
+                    BaseUrl = "N/A"
+                },
                 Summary = new RunSummary
                 {
                     Passed = 0,
@@ -163,6 +175,11 @@ public class RunManagerService : IRunManager
                         Error = new StepError { Message = ex.Message },
                         Evidence = new Evidence()
                     }
+                },
+                Analytics = new RunAnalytics
+                {
+                    FlakeRate = 0.0,
+                    LocatorHealth = new List<LocatorHealth>()
                 }
             };
         }
