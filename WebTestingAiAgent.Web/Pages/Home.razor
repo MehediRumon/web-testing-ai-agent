@@ -1,0 +1,65 @@
+﻿@page "/"
+
+<PageTitle>Web Testing AI Agent</PageTitle>
+
+<h1>Web Testing AI Agent Dashboard</h1>
+
+<div class="mb-4">
+    <h2>Welcome to the Web Testing AI Agent</h2>
+    <p class="lead">
+        An autonomous, goal-driven testing platform that accepts natural-language test scenarios, 
+        generates executable plans, and validates outcomes using AI reasoning.
+    </p>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Create New Test Run</h5>
+                <p class="card-text">Define a test objective in natural language and start automated testing.</p>
+                <a href="/create-run" class="btn btn-primary">Create Run</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Monitor Active Runs</h5>
+                <p class="card-text">View and manage currently running test executions.</p>
+                <a href="/runs" class="btn btn-outline-primary">View Runs</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">View Reports</h5>
+                <p class="card-text">Browse test results, evidence packs, and analytics.</p>
+                <a href="/reports" class="btn btn-outline-primary">View Reports</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-5">
+    <h3>Features</h3>
+    <div class="row">
+        <div class="col-md-6">
+            <ul class="list-unstyled">
+                <li><strong>🤖 AI-Powered Planning:</strong> Convert natural language objectives to executable test plans</li>
+                <li><strong>🌐 Real Browser Testing:</strong> Execute tests in Chrome, Edge, and Firefox</li>
+                <li><strong>🔍 Smart Assertions:</strong> AI validates outcomes when explicit assertions aren't provided</li>
+                <li><strong>🛠️ Self-Healing:</strong> Automatically suggest improved selectors when tests fail</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <ul class="list-unstyled">
+                <li><strong>📊 Rich Reporting:</strong> HTML, JSON, and JUnit reports with evidence capture</li>
+                <li><strong>🔗 Integrations:</strong> Slack notifications and Jira issue creation</li>
+                <li><strong>⚡ Parallel Execution:</strong> Run tests concurrently for faster feedback</li>
+                <li><strong>🛡️ Security:</strong> Built-in secret masking and PII protection</li>
+            </ul>
+        </div>
+    </div>
+</div>

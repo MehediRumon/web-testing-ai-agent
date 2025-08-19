@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Api", "WebTestingAiAgent.Api\WebTestingAiAgent.Api.csproj", "{4A26CDD5-4880-44CB-A7BE-CEB9E1EE1686}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Web", "WebTestingAiAgent.Web\WebTestingAiAgent.Web.csproj", "{9D0B26E7-BD77-40E0-8633-366873A3C75D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Core", "WebTestingAiAgent.Core\WebTestingAiAgent.Core.csproj", "{28FBF3EC-40AF-468B-8B25-E556DB386FEE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Cli", "WebTestingAiAgent.Cli\WebTestingAiAgent.Cli.csproj", "{443DA9F4-D49A-46A2-B444-12B402065BA7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4A26CDD5-4880-44CB-A7BE-CEB9E1EE1686}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A26CDD5-4880-44CB-A7BE-CEB9E1EE1686}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A26CDD5-4880-44CB-A7BE-CEB9E1EE1686}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A26CDD5-4880-44CB-A7BE-CEB9E1EE1686}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D0B26E7-BD77-40E0-8633-366873A3C75D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D0B26E7-BD77-40E0-8633-366873A3C75D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D0B26E7-BD77-40E0-8633-366873A3C75D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D0B26E7-BD77-40E0-8633-366873A3C75D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28FBF3EC-40AF-468B-8B25-E556DB386FEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28FBF3EC-40AF-468B-8B25-E556DB386FEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28FBF3EC-40AF-468B-8B25-E556DB386FEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28FBF3EC-40AF-468B-8B25-E556DB386FEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

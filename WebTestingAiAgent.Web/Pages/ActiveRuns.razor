@@ -1,0 +1,263 @@
+@page "/runs"
+@using WebTestingAiAgent.Core.Models
+@inject HttpClient Http
+
+<PageTitle>Active Runs</PageTitle>
+
+<h1>Active Test Runs</h1>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <button class="btn btn-outline-primary" @onclick="RefreshRuns">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+        </button>
+    </div>
+    <div>
+        <a href="/create-run" class="btn btn-primary">Create New Run</a>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading active runs...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <h5>Error Loading Runs</h5>
+        <p>@errorMessage</p>
+        <button class="btn btn-outline-danger" @onclick="RefreshRuns">Try Again</button>
+    </div>
+}
+else if (!activeRuns.Any())
+{
+    <div class="alert alert-info">
+        <h5>No Active Runs</h5>
+        <p>There are currently no active test runs. <a href="/create-run">Create a new run</a> to get started.</p>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Run ID</th>
+                    <th>Status</th>
+                    <th>Progress</th>
+                    <th>Created</th>
+                    <th>Started</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var run in activeRuns)
+                {
+                    <tr>
+                        <td>
+                            <code>@run.RunId.Substring(0, 8)...</code>
+                        </td>
+                        <td>
+                            <span class="badge @GetStatusBadgeClass(run.Status)">
+                                @run.Status.ToUpper()
+                            </span>
+                        </td>
+                        <td>
+                            <div class="progress" style="width: 100px;">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: @(run.Progress)%" 
+                                     aria-valuenow="@run.Progress" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    @run.Progress%
+                                </div>
+                            </div>
+                        </td>
+                        <td>@run.CreatedAt.ToString("HH:mm:ss")</td>
+                        <td>@(run.StartedAt?.ToString("HH:mm:ss") ?? "-")</td>
+                        <td>@GetDuration(run)</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-outline-primary" @onclick="() => ViewDetails(run.RunId)">
+                                    Details
+                                </button>
+                                @if (run.Status == "running" || run.Status == "queued")
+                                {
+                                    <button class="btn btn-outline-danger" @onclick="() => CancelRun(run.RunId)">
+                                        Cancel
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@if (selectedRun != null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Run Details: @selectedRun.RunId.Substring(0, 8)...</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDetails"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Status:</strong> @selectedRun.Status<br />
+                            <strong>Progress:</strong> @selectedRun.Progress%<br />
+                            <strong>Created:</strong> @selectedRun.CreatedAt<br />
+                            <strong>Started:</strong> @(selectedRun.StartedAt?.ToString() ?? "Not started")<br />
+                            @if (selectedRun.CompletedAt.HasValue)
+                            {
+                                <strong>Completed:</strong> @selectedRun.CompletedAt<br />
+                            }
+                        </div>
+                    </div>
+
+                    @if (selectedRun.PartialResults.Any())
+                    {
+                        <h6 class="mt-3">Partial Results:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Step</th>
+                                        <th>Status</th>
+                                        <th>Duration</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var result in selectedRun.PartialResults)
+                                    {
+                                        <tr>
+                                            <td>@result.StepId</td>
+                                            <td>
+                                                <span class="badge @GetStatusBadgeClass(result.Status)">
+                                                    @result.Status
+                                                </span>
+                                            </td>
+                                            <td>@((result.End - result.Start).TotalSeconds.ToString("F2"))s</td>
+                                            <td>@(result.Notes ?? "-")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDetails">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RunStatus> activeRuns = new();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+    private RunStatus? selectedRun = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshRuns();
+    }
+
+    private async Task RefreshRuns()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var response = await Http.GetAsync("http://localhost:5146/api/runs");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                activeRuns = await response.Content.ReadFromJsonAsync<List<RunStatus>>() ?? new List<RunStatus>();
+            }
+            else
+            {
+                errorMessage = $"Failed to load runs: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task CancelRun(string runId)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"http://localhost:5146/api/runs/{runId}/cancel", null);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                await RefreshRuns();
+            }
+            else
+            {
+                errorMessage = $"Failed to cancel run: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error cancelling run: {ex.Message}";
+        }
+    }
+
+    private void ViewDetails(string runId)
+    {
+        selectedRun = activeRuns.FirstOrDefault(r => r.RunId == runId);
+    }
+
+    private void CloseDetails()
+    {
+        selectedRun = null;
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status.ToLower() switch
+        {
+            "completed" => "bg-success",
+            "failed" => "bg-danger",
+            "running" => "bg-primary",
+            "queued" => "bg-warning",
+            "cancelled" => "bg-secondary",
+            "passed" => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetDuration(RunStatus run)
+    {
+        var end = run.CompletedAt ?? DateTime.UtcNow;
+        var start = run.StartedAt ?? run.CreatedAt;
+        var duration = end - start;
+        
+        if (duration.TotalMinutes > 1)
+            return $"{duration.TotalMinutes:F1}m";
+        else
+            return $"{duration.TotalSeconds:F0}s";
+    }
+}

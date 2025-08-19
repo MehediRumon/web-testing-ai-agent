@@ -1,0 +1,48 @@
+@page "/reports"
+
+<PageTitle>Reports</PageTitle>
+
+<h1>Test Reports</h1>
+
+<div class="alert alert-info">
+    <h5>Reports Coming Soon</h5>
+    <p>
+        The reports section will allow you to browse historical test results, 
+        download evidence packs, and analyze test analytics. This feature is 
+        currently under development.
+    </p>
+    
+    <h6>Planned Features:</h6>
+    <ul>
+        <li>Browse completed test runs</li>
+        <li>Download HTML, JSON, and JUnit reports</li>
+        <li>View evidence packages (screenshots, DOM snapshots, logs)</li>
+        <li>Test analytics and trends</li>
+        <li>Healing suggestions and locator health</li>
+    </ul>
+    
+    <p>
+        For now, you can access reports through the API endpoints directly or 
+        view active run details in the <a href="/runs">Active Runs</a> section.
+    </p>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <h3>API Endpoints</h3>
+        <p>You can access reports programmatically using these endpoints:</p>
+        <ul class="list-unstyled">
+            <li><code>GET /api/reports/{runId}?format=html</code> - HTML Report</li>
+            <li><code>GET /api/reports/{runId}?format=json</code> - JSON Report</li>
+            <li><code>GET /api/reports/{runId}?format=junit</code> - JUnit XML</li>
+            <li><code>GET /api/reports/{runId}/evidence-pack</code> - Evidence ZIP</li>
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <h3>CLI Commands</h3>
+        <p>Generate and view reports using the command line:</p>
+        <pre><code>ai-agent report --runId &lt;runId&gt; --format html --open</code></pre>
+        <pre><code>ai-agent report --runId &lt;runId&gt; --format json</code></pre>
+        <pre><code>ai-agent report --runId &lt;runId&gt; --format junit</code></pre>
+    </div>
+</div>
