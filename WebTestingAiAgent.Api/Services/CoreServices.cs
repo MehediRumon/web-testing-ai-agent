@@ -1,7 +1,9 @@
 using WebTestingAiAgent.Core.Interfaces;
 using WebTestingAiAgent.Core.Models;
 using System.Text.RegularExpressions;
-using Microsoft.Playwright;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Support.UI;
 
 namespace WebTestingAiAgent.Api.Services;
 
@@ -311,13 +313,13 @@ public class PlannerService : IPlannerService
 
 public class ExecutorService : IExecutorService
 {
-    private static bool _playwrightInitialized = false;
+    private static bool _chromeDriverInitialized = false;
     private static readonly object _lockObj = new object();
 
     public async Task<List<StepResult>> ExecutePlanAsync(PlanJson plan, AgentConfig config)
     {
-        // Initialize Playwright once per application
-        await EnsurePlaywrightInitializedAsync();
+        // Initialize ChromeDriver once per application
+        await EnsureChromeDriverInitializedAsync();
         
         var results = new List<StepResult>();
         
@@ -325,25 +327,23 @@ public class ExecutorService : IExecutorService
         
         try
         {
-            using var playwright = await Playwright.CreateAsync();
-            await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            var options = new ChromeOptions();
+            if (config.Headless)
             {
-                Headless = config.Headless,
-                Args = new[] { "--disable-dev-shm-usage", "--no-sandbox" }
-            });
+                options.AddArgument("--headless");
+            }
+            options.AddArgument("--disable-dev-shm-usage");
+            options.AddArgument("--no-sandbox");
+            options.AddArgument("--window-size=1280,720");
             
-            var context = await browser.NewContextAsync(new BrowserNewContextOptions
-            {
-                ViewportSize = new ViewportSize { Width = 1280, Height = 720 }
-            });
-            
-            var page = await context.NewPageAsync();
+            using var driver = new ChromeDriver(options);
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
             
             try
             {
                 foreach (var step in plan.Steps)
                 {
-                    var result = await ExecuteStepAsync(step, config, page);
+                    var result = await ExecuteStepAsync(step, config, driver);
                     results.Add(result);
                     
                     // If a step fails and it's not a non-critical step, consider stopping
@@ -355,10 +355,12 @@ public class ExecutorService : IExecutorService
             }
             finally
             {
-                await context.CloseAsync();
+                driver.Quit();
             }
         }
-        catch (Exception ex) when (ex.Message.Contains("Executable doesn't exist") || ex.Message.Contains("browser not found") || ex.Message.Contains("Failed to launch"))
+        catch (Exception ex) when (ex.Message.Contains("cannot find Chrome binary") || 
+                                   ex.Message.Contains("chromedriver") || 
+                                   ex.Message.Contains("Failed to start"))
         {
             // Create a proper error result indicating browser setup issue
             var endTime = DateTime.UtcNow;
@@ -369,18 +371,18 @@ public class ExecutorService : IExecutorService
                 End = endTime,
                 Status = "failed",
                 Notes = $"Browser initialization failed. Headless mode was set to: {config.Headless}. " +
-                       "Please ensure Playwright browsers are installed by running: dotnet run --project WebTestingAiAgent.Api && ./bin/Debug/net8.0/playwright.ps1 install chromium",
+                       "Please ensure Chrome browser and ChromeDriver are installed and accessible.",
                 Error = new StepError 
                 { 
                     Message = $"Browser setup failed: {ex.Message}. " +
-                             "Run 'playwright install chromium' to install required browsers."
+                             "Ensure Chrome browser is installed and ChromeDriver is available in PATH or included in the project."
                 },
                 Evidence = new Evidence()
             });
             
             Console.WriteLine($"Browser initialization failed: {ex.Message}");
             Console.WriteLine($"Browser configuration attempted: Headless = {config.Headless}");
-            Console.WriteLine("To fix this issue, install Playwright browsers by running: ./bin/Debug/net8.0/playwright.ps1 install chromium");
+            Console.WriteLine("To fix this issue, ensure Chrome browser is installed and ChromeDriver is available.");
         }
 
         return results;
@@ -389,30 +391,34 @@ public class ExecutorService : IExecutorService
     public async Task<StepResult> ExecuteStepAsync(TestStep step, AgentConfig config)
     {
         // This overload creates its own browser instance
-        await EnsurePlaywrightInitializedAsync();
+        await EnsureChromeDriverInitializedAsync();
         
         try
         {
-            using var playwright = await Playwright.CreateAsync();
-            await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            var options = new ChromeOptions();
+            if (config.Headless)
             {
-                Headless = config.Headless,
-                Args = new[] { "--disable-dev-shm-usage", "--no-sandbox" }
-            });
+                options.AddArgument("--headless");
+            }
+            options.AddArgument("--disable-dev-shm-usage");
+            options.AddArgument("--no-sandbox");
+            options.AddArgument("--window-size=1280,720");
             
-            var context = await browser.NewContextAsync();
-            var page = await context.NewPageAsync();
+            using var driver = new ChromeDriver(options);
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
             
             try
             {
-                return await ExecuteStepAsync(step, config, page);
+                return await ExecuteStepAsync(step, config, driver);
             }
             finally
             {
-                await context.CloseAsync();
+                driver.Quit();
             }
         }
-        catch (Exception ex) when (ex.Message.Contains("Executable doesn't exist") || ex.Message.Contains("browser not found") || ex.Message.Contains("Failed to launch"))
+        catch (Exception ex) when (ex.Message.Contains("cannot find Chrome binary") || 
+                                   ex.Message.Contains("chromedriver") || 
+                                   ex.Message.Contains("Failed to start"))
         {
             // Return a proper error result for single step execution
             var endTime = DateTime.UtcNow;
@@ -425,14 +431,14 @@ public class ExecutorService : IExecutorService
                 Notes = $"Browser initialization failed for step '{step.Id}'. Headless mode: {config.Headless}",
                 Error = new StepError 
                 { 
-                    Message = $"Browser setup failed: {ex.Message}. Install browsers with: playwright install chromium"
+                    Message = $"Browser setup failed: {ex.Message}. Ensure Chrome browser and ChromeDriver are available."
                 },
                 Evidence = new Evidence()
             };
         }
     }
 
-    private async Task<StepResult> ExecuteStepAsync(TestStep step, AgentConfig config, IPage page)
+    private async Task<StepResult> ExecuteStepAsync(TestStep step, AgentConfig config, IWebDriver driver)
     {
         var stepResult = new StepResult
         {
@@ -447,34 +453,24 @@ public class ExecutorService : IExecutorService
 
         try
         {
-            // Set up console logging
-            page.Console += (_, e) => stepResult.Evidence.Console.Add($"[{e.Type}] {e.Text}");
-            
-            // Set up network monitoring
-            page.Response += (_, e) => stepResult.Evidence.Network.Add(new NetworkRequest
-            {
-                Url = e.Url,
-                Status = e.Status
-            });
-
             Console.WriteLine($"Executing step: {step.Id} - {step.Action}");
 
             switch (step.Action.ToLower())
             {
                 case "navigate":
-                    await ExecuteNavigateAsync(page, step);
+                    await ExecuteNavigateAsync(driver, step);
                     break;
                 
                 case "click":
-                    await ExecuteClickAsync(page, step);
+                    await ExecuteClickAsync(driver, step);
                     break;
                 
                 case "input":
-                    await ExecuteInputAsync(page, step);
+                    await ExecuteInputAsync(driver, step);
                     break;
                 
                 case "assert":
-                    await ExecuteAssertAsync(page, step);
+                    await ExecuteAssertAsync(driver, step);
                     break;
                 
                 default:
@@ -482,7 +478,7 @@ public class ExecutorService : IExecutorService
             }
 
             // Validate assertions
-            var assertionResults = await ValidateAssertionsAsync(page, step.Assertions);
+            var assertionResults = await ValidateAssertionsAsync(driver, step.Assertions);
             
             stepResult.Status = assertionResults.All(a => a) ? "passed" : "failed";
             stepResult.Notes = $"Step executed successfully. Assertions: {assertionResults.Count(a => a)}/{assertionResults.Count} passed";
@@ -490,17 +486,20 @@ public class ExecutorService : IExecutorService
             // Capture screenshot on failure or if explicitly requested
             if (stepResult.Status == "failed" || step.Metadata.Tags.Contains("@screenshot"))
             {
-                await CaptureEvidenceAsync(page, stepResult);
+                await CaptureEvidenceAsync(driver, stepResult);
             }
         }
         catch (Exception ex)
         {
             stepResult.Status = "failed";
-            stepResult.Error = new StepError { Message = ex.Message };
+            stepResult.Error = new StepError 
+            { 
+                Message = ex.Message
+            };
             stepResult.Notes = $"Step failed with error: {ex.Message}";
-            
-            // Capture evidence on error
-            await CaptureEvidenceAsync(page, stepResult);
+
+            // Capture evidence on failure
+            await CaptureEvidenceAsync(driver, stepResult);
         }
         finally
         {
@@ -510,86 +509,66 @@ public class ExecutorService : IExecutorService
         return stepResult;
     }
 
-    private async Task ExecuteNavigateAsync(IPage page, TestStep step)
+    private async Task ExecuteNavigateAsync(IWebDriver driver, TestStep step)
     {
         if (step.Target?.Primary?.Value == null)
             throw new ArgumentException("Navigate action requires a URL value");
 
-        await page.GotoAsync(step.Target.Primary.Value, new PageGotoOptions
-        {
-            WaitUntil = WaitUntilState.NetworkIdle,
-            Timeout = step.TimeoutMs
-        });
+        driver.Navigate().GoToUrl(step.Target.Primary.Value);
+        
+        // Wait for page to load
+        var wait = new WebDriverWait(driver, TimeSpan.FromMilliseconds(step.TimeoutMs));
+        wait.Until(driver => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
+        
+        await Task.CompletedTask;
     }
 
-    private async Task ExecuteClickAsync(IPage page, TestStep step)
+    private async Task ExecuteClickAsync(IWebDriver driver, TestStep step)
     {
-        var locator = await FindElementAsync(page, step.Target);
-        await locator.ClickAsync(new LocatorClickOptions
-        {
-            Timeout = step.TimeoutMs
-        });
+        var element = await FindElementAsync(driver, step.Target);
+        element.Click();
     }
 
-    private async Task ExecuteInputAsync(IPage page, TestStep step)
+    private async Task ExecuteInputAsync(IWebDriver driver, TestStep step)
     {
         if (step.Value == null)
             throw new ArgumentException("Input action requires a value");
 
-        var locator = await FindElementAsync(page, step.Target);
-        await locator.FillAsync(step.Value, new LocatorFillOptions
-        {
-            Timeout = step.TimeoutMs
-        });
+        var element = await FindElementAsync(driver, step.Target);
+        element.Clear();
+        element.SendKeys(step.Value);
     }
 
-    private async Task ExecuteAssertAsync(IPage page, TestStep step)
+    private async Task ExecuteAssertAsync(IWebDriver driver, TestStep step)
     {
         if (step.Target != null)
         {
-            var locator = await FindElementAsync(page, step.Target);
-            await locator.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Visible,
-                Timeout = step.TimeoutMs
-            });
+            var element = await FindElementAsync(driver, step.Target);
+            // If we found the element, the assertion passes
         }
     }
 
-    private async Task<ILocator> FindElementAsync(IPage page, Target? target)
+    private async Task<IWebElement> FindElementAsync(IWebDriver driver, Target? target)
     {
         if (target?.Primary == null)
             throw new ArgumentException("Target primary locator is required");
 
         try
         {
-            var locator = GetLocator(page, target.Primary);
-            
-            // Wait for element to be attached
-            await locator.WaitForAsync(new LocatorWaitForOptions
-            {
-                State = WaitForSelectorState.Attached,
-                Timeout = 5000
-            });
-            
-            return locator;
+            var element = GetElement(driver, target.Primary);
+            return element;
         }
-        catch (TimeoutException)
+        catch (NoSuchElementException)
         {
             // Try fallback locators
             foreach (var fallback in target.Fallbacks ?? new List<Locator>())
             {
                 try
                 {
-                    var locator = GetLocator(page, fallback);
-                    await locator.WaitForAsync(new LocatorWaitForOptions
-                    {
-                        State = WaitForSelectorState.Attached,
-                        Timeout = 2000
-                    });
-                    return locator;
+                    var element = GetElement(driver, fallback);
+                    return element;
                 }
-                catch (TimeoutException)
+                catch (NoSuchElementException)
                 {
                     continue;
                 }
@@ -599,23 +578,23 @@ public class ExecutorService : IExecutorService
         }
     }
 
-    private ILocator GetLocator(IPage page, Locator locator)
+    private IWebElement GetElement(IWebDriver driver, Locator locator)
     {
         return locator.By.ToLower() switch
         {
-            "id" => page.Locator($"#{locator.Value}"),
-            "css" => page.Locator(locator.Value),
-            "xpath" => page.Locator($"xpath={locator.Value}"),
-            "name" => page.Locator($"[name='{locator.Value}']"),
-            "linktext" => page.Locator($"a:has-text('{locator.Value}')"),
-            "partiallinktext" => page.Locator($"a:text-matches('{Regex.Escape(locator.Value)}', 'i')"),
-            "text" => page.Locator($":text('{locator.Value}')"),
+            "id" => driver.FindElement(By.Id(locator.Value)),
+            "css" => driver.FindElement(By.CssSelector(locator.Value)),
+            "xpath" => driver.FindElement(By.XPath(locator.Value)),
+            "name" => driver.FindElement(By.Name(locator.Value)),
+            "linktext" => driver.FindElement(By.LinkText(locator.Value)),
+            "partiallinktext" => driver.FindElement(By.PartialLinkText(locator.Value)),
+            "text" => driver.FindElement(By.XPath($"//*[contains(text(), '{locator.Value}')]")),
             "url" => throw new ArgumentException("URL locator is only valid for navigate actions"),
             _ => throw new ArgumentException($"Unsupported locator type: {locator.By}")
         };
     }
 
-    private async Task<List<bool>> ValidateAssertionsAsync(IPage page, List<Assertion> assertions)
+    private async Task<List<bool>> ValidateAssertionsAsync(IWebDriver driver, List<Assertion> assertions)
     {
         var results = new List<bool>();
         
@@ -625,9 +604,9 @@ public class ExecutorService : IExecutorService
             {
                 bool result = assertion.Type.ToLower() switch
                 {
-                    "statusok" => await ValidateStatusOkAsync(page, assertion.Value),
-                    "elementvisible" => await ValidateElementVisibleAsync(page, assertion.Value),
-                    "textcontains" => await ValidateTextContainsAsync(page, assertion.Value),
+                    "statusok" => await ValidateStatusOkAsync(driver, assertion.Value),
+                    "elementvisible" => await ValidateElementVisibleAsync(driver, assertion.Value),
+                    "textcontains" => await ValidateTextContainsAsync(driver, assertion.Value),
                     _ => true // Unknown assertion types pass by default
                 };
                 
@@ -642,25 +621,15 @@ public class ExecutorService : IExecutorService
         return results;
     }
 
-    private async Task<bool> ValidateStatusOkAsync(IPage page, string expectedStatus)
+    private async Task<bool> ValidateStatusOkAsync(IWebDriver driver, string expectedStatus)
     {
         await Task.CompletedTask;
-        // Note: Playwright doesn't expose response status directly from page
-        // We would need to capture this during navigation
-        return true; // Simplified for now
-    }
-
-    private async Task<bool> ValidateElementVisibleAsync(IPage page, string selector)
-    {
+        // For Selenium, we can't easily check HTTP status codes without additional setup
+        // We'll assume navigation was successful if we can find the body element
         try
         {
-            if (selector == "true" || selector == "body")
-            {
-                // General page visibility check
-                return await page.IsVisibleAsync("body");
-            }
-            
-            return await page.IsVisibleAsync(selector);
+            driver.FindElement(By.TagName("body"));
+            return true;
         }
         catch
         {
@@ -668,11 +637,32 @@ public class ExecutorService : IExecutorService
         }
     }
 
-    private async Task<bool> ValidateTextContainsAsync(IPage page, string expectedText)
+    private async Task<bool> ValidateElementVisibleAsync(IWebDriver driver, string selector)
     {
         try
         {
-            var content = await page.TextContentAsync("body");
+            if (selector == "true" || selector == "body")
+            {
+                // General page visibility check
+                var bodyElement = driver.FindElement(By.TagName("body"));
+                return bodyElement.Displayed;
+            }
+            
+            var element = driver.FindElement(By.CssSelector(selector));
+            return element.Displayed;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<bool> ValidateTextContainsAsync(IWebDriver driver, string expectedText)
+    {
+        try
+        {
+            var bodyElement = driver.FindElement(By.TagName("body"));
+            var content = bodyElement.Text;
             return content?.Contains(expectedText, StringComparison.OrdinalIgnoreCase) ?? false;
         }
         catch
@@ -681,7 +671,7 @@ public class ExecutorService : IExecutorService
         }
     }
 
-    private async Task CaptureEvidenceAsync(IPage page, StepResult stepResult)
+    private async Task CaptureEvidenceAsync(IWebDriver driver, StepResult stepResult)
     {
         try
         {
@@ -691,16 +681,14 @@ public class ExecutorService : IExecutorService
 
             // Capture screenshot
             var screenshotPath = Path.Combine(evidenceDir, "screenshot.png");
-            await page.ScreenshotAsync(new PageScreenshotOptions
-            {
-                Path = screenshotPath,
-                FullPage = true
-            });
+            var screenshotDriver = (ITakesScreenshot)driver;
+            var screenshot = screenshotDriver.GetScreenshot();
+            screenshot.SaveAsFile(screenshotPath);
             stepResult.Evidence.ScreenshotPath = screenshotPath;
 
             // Capture DOM snapshot
             var domPath = Path.Combine(evidenceDir, "dom.html");
-            var content = await page.ContentAsync();
+            var content = driver.PageSource;
             await File.WriteAllTextAsync(domPath, content);
             stepResult.Evidence.DomSnapshotPath = domPath;
         }
@@ -711,17 +699,17 @@ public class ExecutorService : IExecutorService
         }
     }
 
-    private async Task EnsurePlaywrightInitializedAsync()
+    private async Task EnsureChromeDriverInitializedAsync()
     {
-        if (!_playwrightInitialized)
+        if (!_chromeDriverInitialized)
         {
             lock (_lockObj)
             {
-                if (!_playwrightInitialized)
+                if (!_chromeDriverInitialized)
                 {
-                    // Note: Browsers should be installed via the CLI command: playwright install chromium
-                    // For now, we'll assume they're available and let Playwright throw an error if not
-                    _playwrightInitialized = true;
+                    // Note: Chrome browser and ChromeDriver should be installed and accessible
+                    // ChromeDriver will be automatically downloaded by the Selenium.WebDriver.ChromeDriver package
+                    _chromeDriverInitialized = true;
                 }
             }
         }
