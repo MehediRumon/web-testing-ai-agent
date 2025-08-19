@@ -87,7 +87,7 @@ else
                                 <button class="btn btn-outline-primary" @onclick="() => ViewDetails(run.RunId)">
                                     Details
                                 </button>
-                                @if (run.Status == "running" || run.Status == "queued")
+                                @if (run.Status == "running" || run.Status == "queued" || run.Status == "planning" || run.Status == "executing")
                                 {
                                     <button class="btn btn-outline-danger" @onclick="() => CancelRun(run.RunId)">
                                         Cancel
@@ -241,7 +241,10 @@ else
         {
             "completed" => "bg-success",
             "failed" => "bg-danger",
+            "error" => "bg-danger",
             "running" => "bg-primary",
+            "planning" => "bg-info",
+            "executing" => "bg-primary",
             "queued" => "bg-warning",
             "cancelled" => "bg-secondary",
             "passed" => "bg-success",
