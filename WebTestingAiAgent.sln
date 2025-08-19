@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Web", "We
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Core", "WebTestingAiAgent.Core\WebTestingAiAgent.Core.csproj", "{28FBF3EC-40AF-468B-8B25-E556DB386FEE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Cli", "WebTestingAiAgent.Cli\WebTestingAiAgent.Cli.csproj", "{443DA9F4-D49A-46A2-B444-12B402065BA7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{28FBF3EC-40AF-468B-8B25-E556DB386FEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{28FBF3EC-40AF-468B-8B25-E556DB386FEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{28FBF3EC-40AF-468B-8B25-E556DB386FEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

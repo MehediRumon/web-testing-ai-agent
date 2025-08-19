@@ -1,0 +1,191 @@
+@page "/create-run"
+@using WebTestingAiAgent.Core.Models
+@using System.Text.Json
+@inject HttpClient Http
+
+<PageTitle>Create Test Run</PageTitle>
+
+<h1>Create New Test Run</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <EditForm Model="@request" OnValidSubmit="@HandleSubmit" FormName="CreateRun">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" />
+
+            <div class="mb-3">
+                <label for="objective" class="form-label">Test Objective</label>
+                <textarea id="objective" class="form-control" @bind="request.Objective" 
+                         rows="4" placeholder="Describe what you want to test in natural language..."></textarea>
+                <div class="form-text">
+                    Example: "Test the login functionality with valid and invalid credentials, then verify the user dashboard loads correctly"
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="baseUrl" class="form-label">Base URL</label>
+                <input type="url" id="baseUrl" class="form-control" @bind="request.BaseUrl" 
+                       placeholder="https://your-app.example.com" />
+                <div class="form-text">The base URL of the application to test</div>
+            </div>
+
+            <div class="mb-3">
+                <h5>Configuration</h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="timeBudget" class="form-label">Time Budget (seconds)</label>
+                        <input type="number" id="timeBudget" class="form-control" 
+                               @bind="config.Exploration.TimeBudgetSec" min="30" max="3600" />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="explorationDepth" class="form-label">Exploration Depth</label>
+                        <input type="number" id="explorationDepth" class="form-control" 
+                               @bind="config.Exploration.MaxDepth" min="0" max="5" />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="parallel" class="form-label">Parallel Workers</label>
+                        <input type="number" id="parallel" class="form-control" 
+                               @bind="config.Parallel" min="1" max="20" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input type="checkbox" id="headless" class="form-check-input" @bind="config.Headless" />
+                    <label for="headless" class="form-check-label">Headless Mode</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" id="captureNetwork" class="form-check-input" @bind="config.Evidence.CaptureNetwork" />
+                    <label for="captureNetwork" class="form-check-label">Capture Network Traffic</label>
+                </div>
+                <div class="form-check">
+                    <input type="checkbox" id="verboseEvidence" class="form-check-input" @bind="config.Evidence.Verbose" />
+                    <label for="verboseEvidence" class="form-check-label">Verbose Evidence Capture</label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span>Creating Run...</span>
+                    }
+                    else
+                    {
+                        <span>Create Test Run</span>
+                    }
+                </button>
+                <a href="/" class="btn btn-secondary ms-2">Cancel</a>
+            </div>
+        </EditForm>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-3">
+                <h5>Error</h5>
+                <p>@errorMessage</p>
+                @if (validationErrors.Any())
+                {
+                    <ul>
+                        @foreach (var error in validationErrors)
+                        {
+                            <li><strong>@error.Field:</strong> @error.Message</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success mt-3">
+                <h5>Success!</h5>
+                <p>@successMessage</p>
+                <a href="/runs" class="btn btn-outline-success">View Active Runs</a>
+            </div>
+        }
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Tips for Writing Objectives</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><strong>Be specific:</strong> Include what actions to take and what to verify</li>
+                    <li><strong>Include scenarios:</strong> Test both success and failure paths</li>
+                    <li><strong>Mention data:</strong> Specify test credentials or data if needed</li>
+                    <li><strong>Set expectations:</strong> Describe what success looks like</li>
+                </ul>
+                
+                <hr />
+                
+                <h6>Example Objectives:</h6>
+                <small class="text-muted">
+                    "Test user registration with valid email and password, verify confirmation email is sent, then test login with the new account"
+                </small>
+                <br /><br />
+                <small class="text-muted">
+                    "Navigate to the shopping cart, add three different products, verify total calculation, then proceed through checkout process"
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CreateRunRequest request = new();
+    private AgentConfig config = new();
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private List<ValidationError> validationErrors = new();
+
+    protected override void OnInitialized()
+    {
+        request.Config = config;
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        validationErrors.Clear();
+
+        try
+        {
+            request.Config = config;
+            
+            var response = await Http.PostAsJsonAsync("http://localhost:5146/api/runs", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<CreateRunResponse>();
+                successMessage = $"Test run created successfully! Run ID: {result?.RunId}";
+                
+                // Reset form
+                request = new CreateRunRequest();
+                config = new AgentConfig();
+                request.Config = config;
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+                errorMessage = errorResponse?.Message ?? "Failed to create run";
+                validationErrors = errorResponse?.Errors ?? new List<ValidationError>();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+}
