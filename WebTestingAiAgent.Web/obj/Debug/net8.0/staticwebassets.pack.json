@@ -1,0 +1,61 @@
+{
+  "Files": [
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/bin/Debug/net8.0/wwwroot/_framework/blazor.webassembly.js",
+      "PackagePath": "staticwebassets/_framework/blazor.webassembly.js"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/obj/Debug/net8.0/compressed/m17cl6z7iv.gz",
+      "PackagePath": "staticwebassets/_framework/blazor.webassembly.js.gz"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/obj/Debug/net8.0/scopedcss/bundle/WebTestingAiAgent.Web.styles.css",
+      "PackagePath": "staticwebassets/WebTestingAiAgent.Web.styles.css"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/wwwroot/css/app.css",
+      "PackagePath": "staticwebassets/css/app.css"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/wwwroot/css/bootstrap/bootstrap.min.css",
+      "PackagePath": "staticwebassets/css/bootstrap/bootstrap.min.css"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/wwwroot/css/bootstrap/bootstrap.min.css.map",
+      "PackagePath": "staticwebassets/css/bootstrap/bootstrap.min.css.map"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/wwwroot/favicon.png",
+      "PackagePath": "staticwebassets/favicon.png"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/wwwroot/icon-192.png",
+      "PackagePath": "staticwebassets/icon-192.png"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/wwwroot/index.html",
+      "PackagePath": "staticwebassets/index.html"
+    },
+    {
+      "Id": "/home/runner/work/web-testing-ai-agent/web-testing-ai-agent/WebTestingAiAgent.Web/wwwroot/sample-data/weather.json",
+      "PackagePath": "staticwebassets/sample-data/weather.json"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.WebTestingAiAgent.Web.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.build.WebTestingAiAgent.Web.props",
+      "PackagePath": "build\\WebTestingAiAgent.Web.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildMultiTargeting.WebTestingAiAgent.Web.props",
+      "PackagePath": "buildMultiTargeting\\WebTestingAiAgent.Web.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildTransitive.WebTestingAiAgent.Web.props",
+      "PackagePath": "buildTransitive\\WebTestingAiAgent.Web.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

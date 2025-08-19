@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "pJ3ilCSj7Yg3rc2KJu7ThW7Bx7AEICznEbMT1QGGXB8=",
+  "Source": "WebTestingAiAgent.Api",
+  "BasePath": "_content/WebTestingAiAgent.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
