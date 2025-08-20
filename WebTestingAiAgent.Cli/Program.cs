@@ -219,13 +219,10 @@ class Program
 
     static bool ShouldUseMockExecution()
     {
-        // Check if Chrome binary is not available
-        bool chromeAvailable = System.IO.File.Exists("/usr/bin/google-chrome") || 
-                              System.IO.File.Exists("/usr/bin/chromium-browser") ||
-                              System.IO.File.Exists("/usr/bin/chrome") ||
-                              System.IO.File.Exists("/opt/google/chrome/chrome");
-        
-        return !chromeAvailable;
+        // Check if we're in a headless environment without Chrome
+        return string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY")) || 
+               !System.IO.File.Exists("/usr/bin/google-chrome") && 
+               !System.IO.File.Exists("/usr/bin/chromium-browser");
     }
 
     static List<StepResult> SimulatePlanExecution(PlanJson plan)
