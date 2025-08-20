@@ -495,7 +495,106 @@ public class PlannerService : IPlannerService
             });
         }
 
+        // Post-login navigation tests (only for valid login)
+        if (withValidCredentials)
+        {
+            // Generate common post-login URLs to test
+            var postLoginUrls = GeneratePostLoginTestUrls(baseUrl);
+            
+            foreach (var testUrl in postLoginUrls)
+            {
+                // Navigate to each URL after login
+                steps.Add(new TestStep
+                {
+                    Id = $"step-{stepCounter++:D3}",
+                    Action = "navigate",
+                    Target = new Target
+                    {
+                        Primary = new Locator { By = "url", Value = testUrl }
+                    },
+                    Assertions = new List<Assertion>
+                    {
+                        new Assertion { Type = "statusOk", Value = "200" },
+                        new Assertion { Type = "elementVisible", Value = "body" },
+                        new Assertion { Type = "urlNotEquals", Value = baseUrl + "/login" } // Ensure we're not redirected back to login
+                    },
+                    TimeoutMs = 5000,
+                    Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@post-login", "@authenticated" } }
+                });
+
+                // Look for success indicators on each page
+                steps.Add(new TestStep
+                {
+                    Id = $"step-{stepCounter++:D3}",
+                    Action = "assert",
+                    Target = new Target
+                    {
+                        Primary = new Locator { By = "css", Value = ".welcome, .dashboard, .user-menu, .profile" },
+                        Fallbacks = new List<Locator>
+                        {
+                            new Locator { By = "xpath", Value = "//text()[contains(., 'Welcome') or contains(., 'Dashboard') or contains(., 'Profile')]" },
+                            new Locator { By = "css", Value = ".logout, .sign-out, [href*='logout']" }
+                        }
+                    },
+                    Assertions = new List<Assertion>
+                    {
+                        new Assertion { Type = "elementVisible", Value = "true" }
+                    },
+                    TimeoutMs = 3000,
+                    Metadata = new StepMetadata { Tags = new List<string> { "@authentication", "@success", "@verification" } }
+                });
+
+                // Check for error indicators that suggest bugs
+                steps.Add(new TestStep
+                {
+                    Id = $"step-{stepCounter++:D3}",
+                    Action = "assert",
+                    Target = new Target
+                    {
+                        Primary = new Locator { By = "css", Value = ".error, .alert-danger, .exception, .error-message" },
+                        Fallbacks = new List<Locator>
+                        {
+                            new Locator { By = "xpath", Value = "//text()[contains(., 'Error') or contains(., 'Exception') or contains(., '404') or contains(., '500')]" },
+                            new Locator { By = "css", Value = ".not-found, .server-error, .access-denied" }
+                        }
+                    },
+                    Assertions = new List<Assertion>
+                    {
+                        new Assertion { Type = "elementVisible", Value = "false" } // Error elements should NOT be visible
+                    },
+                    TimeoutMs = 2000,
+                    Metadata = new StepMetadata { Tags = new List<string> { "@error-detection", "@bug-detection", "@quality-check" } }
+                });
+            }
+        }
+
         return steps;
+    }
+
+    private List<string> GeneratePostLoginTestUrls(string baseUrl)
+    {
+        var urls = new List<string>();
+        var baseUri = new Uri(baseUrl);
+        
+        // Common post-login pages to test
+        var commonPaths = new[]
+        {
+            "/dashboard",
+            "/profile", 
+            "/account",
+            "/settings",
+            "/admin",
+            "/user",
+            "/home",
+            "/welcome"
+        };
+        
+        foreach (var path in commonPaths)
+        {
+            urls.Add(baseUri.Scheme + "://" + baseUri.Host + path);
+        }
+        
+        return urls;
     }
 
     private List<string> GenerateCommonLinks(string baseUrl)
@@ -604,13 +703,26 @@ public class ExecutorService : IExecutorService
         try
         {
             var options = new ChromeOptions();
-            if (config.Headless)
+            
+            // Auto-detect headless environment (no display available)
+            bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
+            bool shouldRunHeadless = config.Headless || isHeadlessEnvironment;
+            
+            if (shouldRunHeadless)
             {
                 options.AddArgument("--headless");
+                Console.WriteLine("Running in headless mode");
             }
+            
+            // Enhanced options for better compatibility
             options.AddArgument("--disable-dev-shm-usage");
             options.AddArgument("--no-sandbox");
+            options.AddArgument("--disable-gpu");
+            options.AddArgument("--disable-extensions");
+            options.AddArgument("--disable-web-security");
+            options.AddArgument("--allow-running-insecure-content");
             options.AddArgument("--window-size=1280,720");
+            options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
             
             using var driver = new ChromeDriver(options);
             // Reduce implicit wait for faster execution
@@ -678,13 +790,25 @@ public class ExecutorService : IExecutorService
         try
         {
             var options = new ChromeOptions();
-            if (config.Headless)
+            
+            // Auto-detect headless environment (no display available)
+            bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
+            bool shouldRunHeadless = config.Headless || isHeadlessEnvironment;
+            
+            if (shouldRunHeadless)
             {
                 options.AddArgument("--headless");
             }
+            
+            // Enhanced options for better compatibility
             options.AddArgument("--disable-dev-shm-usage");
             options.AddArgument("--no-sandbox");
+            options.AddArgument("--disable-gpu");
+            options.AddArgument("--disable-extensions");
+            options.AddArgument("--disable-web-security");
+            options.AddArgument("--allow-running-insecure-content");
             options.AddArgument("--window-size=1280,720");
+            options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
             
             using var driver = new ChromeDriver(options);
             // Reduce implicit wait for faster execution
