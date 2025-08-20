@@ -706,12 +706,23 @@ public class ExecutorService : IExecutorService
             
             // Auto-detect headless environment (no display available)
             bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
-            bool shouldRunHeadless = config.Headless || isHeadlessEnvironment;
+            
+            // Users can override headless mode by explicitly setting it to false, but warn about potential issues
+            bool shouldRunHeadless = config.Headless;
+            if (!config.Headless && isHeadlessEnvironment)
+            {
+                Console.WriteLine("⚠️  Warning: No DISPLAY environment variable detected, but headless mode is disabled.");
+                Console.WriteLine("   The browser may not be visible. Consider setting headless=true for server environments.");
+            }
             
             if (shouldRunHeadless)
             {
                 options.AddArgument("--headless");
                 Console.WriteLine("Running in headless mode");
+            }
+            else
+            {
+                Console.WriteLine("Running in non-headless mode (browser will be visible)");
             }
             
             // Enhanced options for better compatibility
@@ -724,7 +735,7 @@ public class ExecutorService : IExecutorService
             options.AddArgument("--window-size=1280,720");
             options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
             
-            using var driver = new ChromeDriver(options);
+            using var driver = new ChromeDriver("/usr/bin", options);
             // Reduce implicit wait for faster execution
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
             // Set page load timeout to prevent hanging
@@ -791,9 +802,16 @@ public class ExecutorService : IExecutorService
         {
             var options = new ChromeOptions();
             
-            // Auto-detect headless environment (no display available)
+            // Auto-detect headless environment (no display available)  
             bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
-            bool shouldRunHeadless = config.Headless || isHeadlessEnvironment;
+            
+            // Users can override headless mode by explicitly setting it to false, but warn about potential issues
+            bool shouldRunHeadless = config.Headless;
+            if (!config.Headless && isHeadlessEnvironment)
+            {
+                Console.WriteLine("⚠️  Warning: No DISPLAY environment variable detected, but headless mode is disabled.");
+                Console.WriteLine("   The browser may not be visible. Consider setting headless=true for server environments.");
+            }
             
             if (shouldRunHeadless)
             {
@@ -810,7 +828,7 @@ public class ExecutorService : IExecutorService
             options.AddArgument("--window-size=1280,720");
             options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
             
-            using var driver = new ChromeDriver(options);
+            using var driver = new ChromeDriver("/usr/bin", options);
             // Reduce implicit wait for faster execution
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
             // Set page load timeout to prevent hanging
@@ -1155,8 +1173,18 @@ public class ExecutorService : IExecutorService
             {
                 if (!_chromeDriverInitialized)
                 {
-                    // Note: Chrome browser and ChromeDriver should be installed and accessible
-                    // ChromeDriver will be automatically downloaded by the Selenium.WebDriver.ChromeDriver package
+                    // Verify Chrome browser is available
+                    bool chromeAvailable = System.IO.File.Exists("/usr/bin/google-chrome") || 
+                                          System.IO.File.Exists("/usr/bin/chromium-browser") ||
+                                          System.IO.File.Exists("/usr/bin/chrome") ||
+                                          System.IO.File.Exists("/opt/google/chrome/chrome");
+                    
+                    if (!chromeAvailable)
+                    {
+                        throw new InvalidOperationException("Chrome browser not found. Please install Google Chrome or Chromium browser.");
+                    }
+                    
+                    // Note: ChromeDriver will be automatically downloaded by the Selenium.WebDriver.ChromeDriver package
                     _chromeDriverInitialized = true;
                 }
             }
