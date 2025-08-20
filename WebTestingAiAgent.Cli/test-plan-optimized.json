@@ -1,0 +1,534 @@
+{
+  "runId": "c447da48-9ceb-44cc-b1c5-3436b259bd00",
+  "baseUrl": "https://httpbin.org",
+  "objective": "Test login functionality",
+  "timeBudgetSeconds": 600,
+  "explorationDepth": 2,
+  "steps": [
+    {
+      "id": "step-001",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://httpbin.org"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        },
+        {
+          "type": "elementVisible",
+          "value": "body"
+        }
+      ],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@login"
+        ]
+      }
+    },
+    {
+      "id": "step-002",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "linkText",
+          "value": "Login"
+        },
+        "fallbacks": [
+          {
+            "by": "linkText",
+            "value": "Sign In"
+          },
+          {
+            "by": "partialLinkText",
+            "value": "Login"
+          },
+          {
+            "by": "partialLinkText",
+            "value": "Sign In"
+          },
+          {
+            "by": "css",
+            "value": "a[href*=\u0027login\u0027], a[href*=\u0027signin\u0027], a[href*=\u0027auth\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(text(), \u0027Login\u0027) or contains(text(), \u0027Sign In\u0027) or contains(text(), \u0027log in\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": ".login-link, .signin-link, .auth-link, [data-testid*=\u0027login\u0027], [data-cy*=\u0027login\u0027]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@login"
+        ]
+      }
+    },
+    {
+      "id": "step-003",
+      "action": "input",
+      "target": {
+        "primary": {
+          "by": "name",
+          "value": "email"
+        },
+        "fallbacks": [
+          {
+            "by": "name",
+            "value": "username"
+          },
+          {
+            "by": "id",
+            "value": "email"
+          },
+          {
+            "by": "id",
+            "value": "username"
+          },
+          {
+            "by": "css",
+            "value": "input[type=\u0027email\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "input[placeholder*=\u0027email\u0027], input[placeholder*=\u0027Email\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "input[placeholder*=\u0027username\u0027], input[placeholder*=\u0027Username\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[contains(@placeholder, \u0027email\u0027) or contains(@placeholder, \u0027Email\u0027) or contains(@placeholder, \u0027username\u0027) or contains(@placeholder, \u0027Username\u0027)]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": "rumon.onnorokom@gmail.com",
+      "assertions": [],
+      "timeoutMs": 5000,
+      "metadata": {
+        "tags": [
+          "@forms",
+          "@login",
+          "@input"
+        ]
+      }
+    },
+    {
+      "id": "step-004",
+      "action": "input",
+      "target": {
+        "primary": {
+          "by": "name",
+          "value": "password"
+        },
+        "fallbacks": [
+          {
+            "by": "id",
+            "value": "password"
+          },
+          {
+            "by": "css",
+            "value": "input[type=\u0027password\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "input[placeholder*=\u0027password\u0027], input[placeholder*=\u0027Password\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@type=\u0027password\u0027 or contains(@placeholder, \u0027password\u0027) or contains(@placeholder, \u0027Password\u0027)]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": "Mrumon4726",
+      "assertions": [],
+      "timeoutMs": 5000,
+      "metadata": {
+        "tags": [
+          "@forms",
+          "@login",
+          "@input"
+        ]
+      }
+    },
+    {
+      "id": "step-005",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": "input[type=\u0027submit\u0027]"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//button[contains(text(), \u0027Login\u0027) or contains(text(), \u0027Sign In\u0027) or contains(text(), \u0027Submit\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "button[type=\u0027submit\u0027]"
+          },
+          {
+            "by": "css",
+            "value": ".login-btn, .signin-btn, .submit-btn"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@value=\u0027Login\u0027 or @value=\u0027Sign In\u0027 or @value=\u0027Submit\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "[data-testid*=\u0027login\u0027], [data-cy*=\u0027login\u0027], [data-testid*=\u0027submit\u0027]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        }
+      ],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@forms",
+          "@login",
+          "@submit"
+        ]
+      }
+    },
+    {
+      "id": "step-006",
+      "action": "assert",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": ".success, .welcome, .dashboard"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//text()[contains(., \u0027Welcome\u0027) or contains(., \u0027Dashboard\u0027) or contains(., \u0027Success\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": ".logout, .profile, .user-menu"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(text(), \u0027Logout\u0027) or contains(text(), \u0027Profile\u0027)]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "elementVisible",
+          "value": "true"
+        }
+      ],
+      "timeoutMs": 5000,
+      "metadata": {
+        "tags": [
+          "@login",
+          "@success",
+          "@verification"
+        ]
+      }
+    },
+    {
+      "id": "step-separator-007",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://httpbin.org"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@separator",
+          "@invalid-test-prep"
+        ]
+      }
+    },
+    {
+      "id": "step-001",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://httpbin.org"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        },
+        {
+          "type": "elementVisible",
+          "value": "body"
+        }
+      ],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@login"
+        ]
+      }
+    },
+    {
+      "id": "step-002",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "linkText",
+          "value": "Login"
+        },
+        "fallbacks": [
+          {
+            "by": "linkText",
+            "value": "Sign In"
+          },
+          {
+            "by": "partialLinkText",
+            "value": "Login"
+          },
+          {
+            "by": "partialLinkText",
+            "value": "Sign In"
+          },
+          {
+            "by": "css",
+            "value": "a[href*=\u0027login\u0027], a[href*=\u0027signin\u0027], a[href*=\u0027auth\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(text(), \u0027Login\u0027) or contains(text(), \u0027Sign In\u0027) or contains(text(), \u0027log in\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": ".login-link, .signin-link, .auth-link, [data-testid*=\u0027login\u0027], [data-cy*=\u0027login\u0027]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@login"
+        ]
+      }
+    },
+    {
+      "id": "step-003",
+      "action": "input",
+      "target": {
+        "primary": {
+          "by": "name",
+          "value": "email"
+        },
+        "fallbacks": [
+          {
+            "by": "name",
+            "value": "username"
+          },
+          {
+            "by": "id",
+            "value": "email"
+          },
+          {
+            "by": "id",
+            "value": "username"
+          },
+          {
+            "by": "css",
+            "value": "input[type=\u0027email\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "input[placeholder*=\u0027email\u0027], input[placeholder*=\u0027Email\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "input[placeholder*=\u0027username\u0027], input[placeholder*=\u0027Username\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[contains(@placeholder, \u0027email\u0027) or contains(@placeholder, \u0027Email\u0027) or contains(@placeholder, \u0027username\u0027) or contains(@placeholder, \u0027Username\u0027)]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": "invalid@test.com",
+      "assertions": [],
+      "timeoutMs": 5000,
+      "metadata": {
+        "tags": [
+          "@forms",
+          "@login",
+          "@input"
+        ]
+      }
+    },
+    {
+      "id": "step-004",
+      "action": "input",
+      "target": {
+        "primary": {
+          "by": "name",
+          "value": "password"
+        },
+        "fallbacks": [
+          {
+            "by": "id",
+            "value": "password"
+          },
+          {
+            "by": "css",
+            "value": "input[type=\u0027password\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "input[placeholder*=\u0027password\u0027], input[placeholder*=\u0027Password\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@type=\u0027password\u0027 or contains(@placeholder, \u0027password\u0027) or contains(@placeholder, \u0027Password\u0027)]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": "wrongpassword",
+      "assertions": [],
+      "timeoutMs": 5000,
+      "metadata": {
+        "tags": [
+          "@forms",
+          "@login",
+          "@input"
+        ]
+      }
+    },
+    {
+      "id": "step-005",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": "input[type=\u0027submit\u0027]"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//button[contains(text(), \u0027Login\u0027) or contains(text(), \u0027Sign In\u0027) or contains(text(), \u0027Submit\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "button[type=\u0027submit\u0027]"
+          },
+          {
+            "by": "css",
+            "value": ".login-btn, .signin-btn, .submit-btn"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@value=\u0027Login\u0027 or @value=\u0027Sign In\u0027 or @value=\u0027Submit\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "[data-testid*=\u0027login\u0027], [data-cy*=\u0027login\u0027], [data-testid*=\u0027submit\u0027]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        }
+      ],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@forms",
+          "@login",
+          "@submit"
+        ]
+      }
+    },
+    {
+      "id": "step-006",
+      "action": "assert",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": ".error, .alert-danger, .login-error"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//text()[contains(., \u0027Invalid\u0027) or contains(., \u0027Error\u0027) or contains(., \u0027incorrect\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": ".invalid-feedback, .field-error, .form-error"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "elementVisible",
+          "value": "true"
+        }
+      ],
+      "timeoutMs": 5000,
+      "metadata": {
+        "tags": [
+          "@login",
+          "@error",
+          "@verification"
+        ]
+      }
+    }
+  ]
+}
