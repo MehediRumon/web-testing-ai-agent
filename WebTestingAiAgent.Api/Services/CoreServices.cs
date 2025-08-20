@@ -556,6 +556,29 @@ public class ExecutorService : IExecutorService
             options.AddArgument("--no-sandbox");
             options.AddArgument("--window-size=1280,720");
             
+            // Suppress Chrome warnings and unnecessary logging
+            options.AddArgument("--log-level=3"); // Only show fatal errors
+            options.AddArgument("--disable-logging");
+            options.AddArgument("--disable-extensions");
+            options.AddArgument("--disable-sync"); // Prevents GCM registration errors
+            options.AddArgument("--disable-background-networking");
+            options.AddArgument("--disable-background-timer-throttling");
+            options.AddArgument("--disable-renderer-backgrounding");
+            options.AddArgument("--disable-backgrounding-occluded-windows");
+            options.AddArgument("--disable-ipc-flooding-protection");
+            options.AddArgument("--mute-audio");
+            options.AddArgument("--disable-features=TranslateUI,BlinkGenPropertyTrees,VizDisplayCompositor");
+            
+            // Suppress specific warnings seen in logs
+            options.AddArgument("--disable-component-update"); // Prevents component update checks
+            options.AddArgument("--disable-default-apps");
+            options.AddArgument("--disable-domain-reliability");
+            options.AddArgument("--disable-background-mode");
+            
+            // Set log file to null to prevent file creation
+            options.AddArgument("--enable-logging");
+            options.AddArgument("--log-file=/dev/null");
+            
             using var driver = new ChromeDriver(options);
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
             
@@ -623,6 +646,29 @@ public class ExecutorService : IExecutorService
             options.AddArgument("--disable-dev-shm-usage");
             options.AddArgument("--no-sandbox");
             options.AddArgument("--window-size=1280,720");
+            
+            // Suppress Chrome warnings and unnecessary logging
+            options.AddArgument("--log-level=3"); // Only show fatal errors
+            options.AddArgument("--disable-logging");
+            options.AddArgument("--disable-extensions");
+            options.AddArgument("--disable-sync"); // Prevents GCM registration errors
+            options.AddArgument("--disable-background-networking");
+            options.AddArgument("--disable-background-timer-throttling");
+            options.AddArgument("--disable-renderer-backgrounding");
+            options.AddArgument("--disable-backgrounding-occluded-windows");
+            options.AddArgument("--disable-ipc-flooding-protection");
+            options.AddArgument("--mute-audio");
+            options.AddArgument("--disable-features=TranslateUI,BlinkGenPropertyTrees,VizDisplayCompositor");
+            
+            // Suppress specific warnings seen in logs
+            options.AddArgument("--disable-component-update"); // Prevents component update checks
+            options.AddArgument("--disable-default-apps");
+            options.AddArgument("--disable-domain-reliability");
+            options.AddArgument("--disable-background-mode");
+            
+            // Set log file to null to prevent file creation
+            options.AddArgument("--enable-logging");
+            options.AddArgument("--log-file=/dev/null");
             
             using var driver = new ChromeDriver(options);
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
