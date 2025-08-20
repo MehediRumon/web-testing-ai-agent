@@ -10,11 +10,6 @@ obj/
 # Temporary test files
 WebTestingAiAgent.Cli/*.json
 
-# Evidence files from test execution
-evidence/
-*/evidence/
-***/evidence/
-
 # Visual Studio / VS Code
 .vs/
 .vscode/

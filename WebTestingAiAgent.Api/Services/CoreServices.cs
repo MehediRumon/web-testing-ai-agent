@@ -702,9 +702,29 @@ public class ExecutorService : IExecutorService
         
         try
         {
-            var options = CreateChromeOptions(config);
+            var options = new ChromeOptions();
             
-            using var driver = new ChromeDriver("/usr/bin", options);
+            // Auto-detect headless environment (no display available)
+            bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
+            bool shouldRunHeadless = config.Headless || isHeadlessEnvironment;
+            
+            if (shouldRunHeadless)
+            {
+                options.AddArgument("--headless");
+                Console.WriteLine("Running in headless mode");
+            }
+            
+            // Enhanced options for better compatibility
+            options.AddArgument("--disable-dev-shm-usage");
+            options.AddArgument("--no-sandbox");
+            options.AddArgument("--disable-gpu");
+            options.AddArgument("--disable-extensions");
+            options.AddArgument("--disable-web-security");
+            options.AddArgument("--allow-running-insecure-content");
+            options.AddArgument("--window-size=1280,720");
+            options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
+            
+            using var driver = new ChromeDriver(options);
             // Reduce implicit wait for faster execution
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
             // Set page load timeout to prevent hanging
@@ -769,9 +789,28 @@ public class ExecutorService : IExecutorService
         
         try
         {
-            var options = CreateChromeOptions(config);
+            var options = new ChromeOptions();
             
-            using var driver = new ChromeDriver("/usr/bin", options);
+            // Auto-detect headless environment (no display available)
+            bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
+            bool shouldRunHeadless = config.Headless || isHeadlessEnvironment;
+            
+            if (shouldRunHeadless)
+            {
+                options.AddArgument("--headless");
+            }
+            
+            // Enhanced options for better compatibility
+            options.AddArgument("--disable-dev-shm-usage");
+            options.AddArgument("--no-sandbox");
+            options.AddArgument("--disable-gpu");
+            options.AddArgument("--disable-extensions");
+            options.AddArgument("--disable-web-security");
+            options.AddArgument("--allow-running-insecure-content");
+            options.AddArgument("--window-size=1280,720");
+            options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
+            
+            using var driver = new ChromeDriver(options);
             // Reduce implicit wait for faster execution
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
             // Set page load timeout to prevent hanging
@@ -1108,48 +1147,6 @@ public class ExecutorService : IExecutorService
         }
     }
 
-    private ChromeOptions CreateChromeOptions(AgentConfig config)
-    {
-        var options = new ChromeOptions();
-        
-        // Auto-detect headless environment (no display available)
-        bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
-        
-        // Users can override headless mode by explicitly setting it to false, but warn about potential issues
-        bool shouldRunHeadless = config.Headless;
-        if (!config.Headless && isHeadlessEnvironment)
-        {
-            Console.WriteLine("⚠️  Warning: No DISPLAY environment variable detected, but headless mode is disabled.");
-            Console.WriteLine("   The browser may not be visible. Consider setting headless=true for server environments.");
-        }
-        
-        if (shouldRunHeadless)
-        {
-            options.AddArgument("--headless");
-            Console.WriteLine("Running in headless mode");
-        }
-        else
-        {
-            Console.WriteLine("Running in non-headless mode (browser will be visible)");
-        }
-        
-        // Enhanced options for better compatibility
-        options.AddArgument("--disable-dev-shm-usage");
-        options.AddArgument("--no-sandbox");
-        options.AddArgument("--disable-gpu");
-        options.AddArgument("--disable-extensions");
-        options.AddArgument("--disable-web-security");
-        options.AddArgument("--allow-running-insecure-content");
-        options.AddArgument("--window-size=1280,720");
-        options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
-        
-        // Use unique user data directory to avoid conflicts
-        var tempUserDataDir = Path.Combine(Path.GetTempPath(), $"chrome-user-data-{Guid.NewGuid():N}");
-        options.AddArgument($"--user-data-dir={tempUserDataDir}");
-        
-        return options;
-    }
-
     private async Task EnsureChromeDriverInitializedAsync()
     {
         if (!_chromeDriverInitialized)
@@ -1158,18 +1155,8 @@ public class ExecutorService : IExecutorService
             {
                 if (!_chromeDriverInitialized)
                 {
-                    // Verify Chrome browser is available
-                    bool chromeAvailable = System.IO.File.Exists("/usr/bin/google-chrome") || 
-                                          System.IO.File.Exists("/usr/bin/chromium-browser") ||
-                                          System.IO.File.Exists("/usr/bin/chrome") ||
-                                          System.IO.File.Exists("/opt/google/chrome/chrome");
-                    
-                    if (!chromeAvailable)
-                    {
-                        throw new InvalidOperationException("Chrome browser not found. Please install Google Chrome or Chromium browser.");
-                    }
-                    
-                    // Note: ChromeDriver will be automatically downloaded by the Selenium.WebDriver.ChromeDriver package
+                    // Note: Chrome browser and ChromeDriver should be installed and accessible
+                    // ChromeDriver will be automatically downloaded by the Selenium.WebDriver.ChromeDriver package
                     _chromeDriverInitialized = true;
                 }
             }
