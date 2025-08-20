@@ -23,28 +23,38 @@ public class PlannerService : IPlannerService
         if (objective.ToLower().Contains("login") || objective.ToLower().Contains("signin") || 
             objective.ToLower().Contains("authentication") || objective.ToLower().Contains("credentials"))
         {
-            // Generate login-specific test cases with both valid and invalid credentials
-            var validLoginSteps = await GenerateLoginTestCasesAsync(baseUrl, withValidCredentials: true);
-            var invalidLoginSteps = await GenerateLoginTestCasesAsync(baseUrl, withValidCredentials: false);
+            // Determine if this is a valid or invalid login test based on the objective
+            bool testInvalidLogin = objective.ToLower().Contains("invalid") || 
+                                   objective.ToLower().Contains("incorrect") || 
+                                   objective.ToLower().Contains("wrong") ||
+                                   objective.ToLower().Contains("failed") ||
+                                   objective.ToLower().Contains("error");
             
-            // Combine both test scenarios
-            steps = new List<TestStep>();
-            steps.AddRange(validLoginSteps);
+            bool testValidLogin = (objective.ToLower().Contains("valid") || 
+                                 objective.ToLower().Contains("correct") || 
+                                 objective.ToLower().Contains("successful") ||
+                                 objective.ToLower().Contains("success")) && !testInvalidLogin; // Don't test valid if invalid is explicitly requested
             
-            // Add separator step
-            steps.Add(new TestStep
+            // If neither valid nor invalid is specified, default to valid login test
+            if (!testValidLogin && !testInvalidLogin)
             {
-                Id = $"step-separator-{steps.Count + 1:D3}",
-                Action = "navigate",
-                Target = new Target
-                {
-                    Primary = new Locator { By = "url", Value = baseUrl }
-                },
-                TimeoutMs = 5000,
-                Metadata = new StepMetadata { Tags = new List<string> { "@separator", "@invalid-test-prep" } }
-            });
+                testValidLogin = true;
+            }
             
-            steps.AddRange(invalidLoginSteps);
+            steps = new List<TestStep>();
+            
+            // Generate test cases based on the specific objective
+            if (testValidLogin)
+            {
+                var validLoginSteps = await GenerateLoginTestCasesAsync(baseUrl, withValidCredentials: true);
+                steps.AddRange(validLoginSteps);
+            }
+            
+            if (testInvalidLogin)
+            {
+                var invalidLoginSteps = await GenerateLoginTestCasesAsync(baseUrl, withValidCredentials: false);
+                steps.AddRange(invalidLoginSteps);
+            }
         }
         else
         {
@@ -339,7 +349,7 @@ public class PlannerService : IPlannerService
                     new Locator { By = "xpath", Value = "//input[contains(@placeholder, 'email') or contains(@placeholder, 'Email') or contains(@placeholder, 'username') or contains(@placeholder, 'Username')]" }
                 }
             },
-            Value = withValidCredentials ? "rumon.onnorokom@gmail.com" : "invalid@test.com",
+            Value = withValidCredentials ? "testuser@example.com" : "invalid@test.com",
             TimeoutMs = 5000,
             Metadata = new StepMetadata { Tags = new List<string> { "@forms", "@login", "@input" } }
         });
@@ -360,7 +370,7 @@ public class PlannerService : IPlannerService
                     new Locator { By = "xpath", Value = "//input[@type='password' or contains(@placeholder, 'password') or contains(@placeholder, 'Password')]" }
                 }
             },
-            Value = withValidCredentials ? "Mrumon4726" : "wrongpassword",
+            Value = withValidCredentials ? "testpassword123" : "wrongpassword",
             TimeoutMs = 5000,
             Metadata = new StepMetadata { Tags = new List<string> { "@forms", "@login", "@input" } }
         });
@@ -393,18 +403,64 @@ public class PlannerService : IPlannerService
         // 6. Verify login result
         if (withValidCredentials)
         {
+            // Add URL change assertion to verify redirection after login
             steps.Add(new TestStep
             {
                 Id = $"step-{stepCounter++:D3}",
                 Action = "assert",
                 Target = new Target
                 {
-                    Primary = new Locator { By = "css", Value = ".success, .welcome, .dashboard" },
+                    Primary = new Locator { By = "url", Value = "urlChanged" }
+                },
+                Assertions = new List<Assertion>
+                {
+                    new Assertion { Type = "urlNotEquals", Value = baseUrl + "/login" },
+                    new Assertion { Type = "urlNotEquals", Value = baseUrl + "/signin" },
+                    new Assertion { Type = "urlNotEquals", Value = baseUrl + "/auth" }
+                },
+                TimeoutMs = 10000, // Allow more time for redirection
+                Metadata = new StepMetadata { Tags = new List<string> { "@login", "@redirection", "@verification" } }
+            });
+            
+            // Verify dashboard/home page elements are visible
+            steps.Add(new TestStep
+            {
+                Id = $"step-{stepCounter++:D3}",
+                Action = "assert",
+                Target = new Target
+                {
+                    Primary = new Locator { By = "css", Value = ".dashboard, .welcome, .user-dashboard, .home-content" },
                     Fallbacks = new List<Locator>
                     {
-                        new Locator { By = "xpath", Value = "//text()[contains(., 'Welcome') or contains(., 'Dashboard') or contains(., 'Success')]" },
-                        new Locator { By = "css", Value = ".logout, .profile, .user-menu" },
-                        new Locator { By = "xpath", Value = "//a[contains(text(), 'Logout') or contains(text(), 'Profile')]" }
+                        new Locator { By = "xpath", Value = "//text()[contains(., 'Welcome') or contains(., 'Dashboard') or contains(., 'Home')]" },
+                        new Locator { By = "css", Value = ".logout, .profile, .user-menu, .user-info" },
+                        new Locator { By = "xpath", Value = "//a[contains(text(), 'Logout') or contains(text(), 'Profile') or contains(text(), 'Sign Out')]" },
+                        new Locator { By = "css", Value = "h1, h2, h3" }, // Any main heading as fallback
+                        new Locator { By = "css", Value = "nav, .navigation, .navbar" } // Navigation elements
+                    }
+                },
+                Assertions = new List<Assertion>
+                {
+                    new Assertion { Type = "elementVisible", Value = "true" },
+                    new Assertion { Type = "textContains", Value = "Welcome|Dashboard|Home|Profile" }
+                },
+                TimeoutMs = 10000,
+                Metadata = new StepMetadata { Tags = new List<string> { "@login", "@success", "@dashboard", "@verification" } }
+            });
+            
+            // Verify user is authenticated by checking for logout option
+            steps.Add(new TestStep
+            {
+                Id = $"step-{stepCounter++:D3}",
+                Action = "assert",
+                Target = new Target
+                {
+                    Primary = new Locator { By = "xpath", Value = "//a[contains(text(), 'Logout') or contains(text(), 'Sign Out')]" },
+                    Fallbacks = new List<Locator>
+                    {
+                        new Locator { By = "css", Value = ".logout, .signout, .sign-out" },
+                        new Locator { By = "css", Value = "[href*='logout'], [href*='signout']" },
+                        new Locator { By = "xpath", Value = "//button[contains(text(), 'Logout') or contains(text(), 'Sign Out')]" }
                     }
                 },
                 Assertions = new List<Assertion>
@@ -412,7 +468,7 @@ public class PlannerService : IPlannerService
                     new Assertion { Type = "elementVisible", Value = "true" }
                 },
                 TimeoutMs = 5000,
-                Metadata = new StepMetadata { Tags = new List<string> { "@login", "@success", "@verification" } }
+                Metadata = new StepMetadata { Tags = new List<string> { "@login", "@authentication", "@logout", "@verification" } }
             });
         }
         else
@@ -772,6 +828,13 @@ public class ExecutorService : IExecutorService
     {
         if (step.Target != null)
         {
+            // Handle URL-based assertions
+            if (step.Target.Primary?.By?.ToLower() == "url")
+            {
+                // URL assertions don't need element finding, they're handled in ValidateAssertionsAsync
+                return;
+            }
+            
             var element = await FindElementAsync(driver, step.Target);
             // If we found the element, the assertion passes
         }
@@ -836,6 +899,7 @@ public class ExecutorService : IExecutorService
                     "statusok" => await ValidateStatusOkAsync(driver, assertion.Value),
                     "elementvisible" => await ValidateElementVisibleAsync(driver, assertion.Value),
                     "textcontains" => await ValidateTextContainsAsync(driver, assertion.Value),
+                    "urlnotequals" => await ValidateUrlNotEqualsAsync(driver, assertion.Value),
                     _ => true // Unknown assertion types pass by default
                 };
                 
@@ -892,7 +956,38 @@ public class ExecutorService : IExecutorService
         {
             var bodyElement = driver.FindElement(By.TagName("body"));
             var content = bodyElement.Text;
+            
+            // Handle pipe-separated options for OR matching
+            if (expectedText.Contains("|"))
+            {
+                var options = expectedText.Split('|');
+                return options.Any(option => content?.Contains(option.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+            }
+            
             return content?.Contains(expectedText, StringComparison.OrdinalIgnoreCase) ?? false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<bool> ValidateUrlNotEqualsAsync(IWebDriver driver, string urlToAvoid)
+    {
+        await Task.CompletedTask;
+        try
+        {
+            var currentUrl = driver.Url;
+            
+            // Handle multiple URL patterns to avoid
+            if (urlToAvoid.Contains("|"))
+            {
+                var urlsToAvoid = urlToAvoid.Split('|');
+                return !urlsToAvoid.Any(url => currentUrl.Contains(url.Trim(), StringComparison.OrdinalIgnoreCase));
+            }
+            
+            // Check if current URL doesn't contain the URL to avoid
+            return !currentUrl.Contains(urlToAvoid, StringComparison.OrdinalIgnoreCase);
         }
         catch
         {
