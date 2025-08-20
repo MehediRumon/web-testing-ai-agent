@@ -17,9 +17,41 @@ public class PlannerService : IPlannerService
             objective = "Automatically test basic functionality of the web application";
         }
         
-        // Auto-discover pages and generate test cases from BaseURL only
-        var discoveredElements = await DiscoverSiteStructureAsync(baseUrl, config.Exploration.MaxDepth);
-        var steps = await GenerateAutomaticTestCasesAsync(baseUrl, discoveredElements);
+        List<TestStep> steps;
+        
+        // Check if this is a login-focused test
+        if (objective.ToLower().Contains("login") || objective.ToLower().Contains("signin") || 
+            objective.ToLower().Contains("authentication") || objective.ToLower().Contains("credentials"))
+        {
+            // Generate login-specific test cases with both valid and invalid credentials
+            var validLoginSteps = await GenerateLoginTestCasesAsync(baseUrl, withValidCredentials: true);
+            var invalidLoginSteps = await GenerateLoginTestCasesAsync(baseUrl, withValidCredentials: false);
+            
+            // Combine both test scenarios
+            steps = new List<TestStep>();
+            steps.AddRange(validLoginSteps);
+            
+            // Add separator step
+            steps.Add(new TestStep
+            {
+                Id = $"step-separator-{steps.Count + 1:D3}",
+                Action = "navigate",
+                Target = new Target
+                {
+                    Primary = new Locator { By = "url", Value = baseUrl }
+                },
+                TimeoutMs = 10000,
+                Metadata = new StepMetadata { Tags = new List<string> { "@separator", "@invalid-test-prep" } }
+            });
+            
+            steps.AddRange(invalidLoginSteps);
+        }
+        else
+        {
+            // Auto-discover pages and generate test cases from BaseURL only
+            var discoveredElements = await DiscoverSiteStructureAsync(baseUrl, config.Exploration.MaxDepth);
+            steps = await GenerateAutomaticTestCasesAsync(baseUrl, discoveredElements);
+        }
         
         var plan = new PlanJson
         {
@@ -130,8 +162,10 @@ public class PlannerService : IPlannerService
                     Fallbacks = new List<Locator>
                     {
                         new Locator { By = "partialLinkText", Value = link },
-                        new Locator { By = "css", Value = $"a[href*='{link.ToLower()}']" },
-                        new Locator { By = "xpath", Value = $"//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{link.ToLower()}')]" }
+                        new Locator { By = "css", Value = $"a[href*='{link.ToLower()}'], a[title*='{link}']" },
+                        new Locator { By = "xpath", Value = $"//a[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{link.ToLower()}')]" },
+                        new Locator { By = "xpath", Value = $"//a[contains(@href, '{link.ToLower()}')] | //button[contains(text(), '{link}')] | //*[@role='button'][contains(text(), '{link}')]" },
+                        new Locator { By = "css", Value = $"[data-link*='{link.ToLower()}'], [data-nav*='{link.ToLower()}'], .nav-link, .menu-item" }
                     }
                 },
                 Assertions = new List<Assertion>
@@ -139,7 +173,7 @@ public class PlannerService : IPlannerService
                     new Assertion { Type = "statusOk", Value = "200" },
                     new Assertion { Type = "elementVisible", Value = "body" }
                 },
-                TimeoutMs = 10000,
+                TimeoutMs = 40000,
                 Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@links", "@optional" } }
             });
 
@@ -173,7 +207,10 @@ public class PlannerService : IPlannerService
                         Fallbacks = new List<Locator>
                         {
                             new Locator { By = "id", Value = input },
-                            new Locator { By = "css", Value = $"input[placeholder*='{input}']" }
+                            new Locator { By = "css", Value = $"input[placeholder*='{input}']" },
+                            new Locator { By = "css", Value = $"input[type='{(input == "password" ? "password" : input == "email" ? "email" : "text")}']" },
+                            new Locator { By = "xpath", Value = $"//input[contains(@placeholder, '{input}') or contains(@name, '{input}') or contains(@id, '{input}')]" },
+                            new Locator { By = "css", Value = $"[data-testid*='{input}'], [data-cy*='{input}'], .{input}-input, #{input}-field" }
                         }
                     },
                     Value = GenerateTestValueForInput(input),
@@ -194,7 +231,9 @@ public class PlannerService : IPlannerService
                     {
                         new Locator { By = "xpath", Value = "//button[contains(text(), 'Submit')]" },
                         new Locator { By = "css", Value = "button" },
-                        new Locator { By = "css", Value = "[type='submit']" }
+                        new Locator { By = "css", Value = "[type='submit']" },
+                        new Locator { By = "xpath", Value = "//input[@value='Submit' or @value='Send' or @value='Login' or @value='Sign In']" },
+                        new Locator { By = "css", Value = ".submit-btn, .login-btn, .send-btn, [role='button']" }
                     }
                 },
                 Assertions = new List<Assertion>
@@ -220,11 +259,183 @@ public class PlannerService : IPlannerService
                     {
                         new Locator { By = "xpath", Value = $"//button[contains(text(), '{button}')]" },
                         new Locator { By = "partialLinkText", Value = button },
-                        new Locator { By = "css", Value = $"[title*='{button}']" }
+                        new Locator { By = "css", Value = $"[title*='{button}']" },
+                        new Locator { By = "xpath", Value = $"//input[@value='{button}' or @title='{button}']" },
+                        new Locator { By = "css", Value = $"button, [role='button'], .btn" },
+                        new Locator { By = "css", Value = $".{button.ToLower()}-btn, .{button.ToLower()}-button, #{button.ToLower()}-btn" }
                     }
                 },
-                TimeoutMs = 5000,
+                TimeoutMs = 40000,
                 Metadata = new StepMetadata { Tags = new List<string> { "@buttons", "@interaction", "@optional" } }
+            });
+        }
+
+        return steps;
+    }
+
+    private async Task<List<TestStep>> GenerateLoginTestCasesAsync(string baseUrl, bool withValidCredentials = true)
+    {
+        await Task.CompletedTask;
+        
+        var steps = new List<TestStep>();
+        int stepCounter = 1;
+
+        // 1. Navigate to main page
+        steps.Add(new TestStep
+        {
+            Id = $"step-{stepCounter++:D3}",
+            Action = "navigate",
+            Target = new Target
+            {
+                Primary = new Locator { By = "url", Value = baseUrl }
+            },
+            Assertions = new List<Assertion>
+            {
+                new Assertion { Type = "statusOk", Value = "200" },
+                new Assertion { Type = "elementVisible", Value = "body" }
+            },
+            TimeoutMs = 10000,
+            Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@login" } }
+        });
+
+        // 2. Find and click login link/button
+        steps.Add(new TestStep
+        {
+            Id = $"step-{stepCounter++:D3}",
+            Action = "click",
+            Target = new Target
+            {
+                Primary = new Locator { By = "linkText", Value = "Login" },
+                Fallbacks = new List<Locator>
+                {
+                    new Locator { By = "linkText", Value = "Sign In" },
+                    new Locator { By = "partialLinkText", Value = "Login" },
+                    new Locator { By = "partialLinkText", Value = "Sign In" },
+                    new Locator { By = "css", Value = "a[href*='login'], a[href*='signin'], a[href*='auth']" },
+                    new Locator { By = "xpath", Value = "//a[contains(text(), 'Login') or contains(text(), 'Sign In') or contains(text(), 'log in')]" },
+                    new Locator { By = "css", Value = ".login-link, .signin-link, .auth-link, [data-testid*='login'], [data-cy*='login']" }
+                }
+            },
+            TimeoutMs = 10000,
+            Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@login" } }
+        });
+
+        // 3. Fill email/username field
+        steps.Add(new TestStep
+        {
+            Id = $"step-{stepCounter++:D3}",
+            Action = "input",
+            Target = new Target
+            {
+                Primary = new Locator { By = "name", Value = "email" },
+                Fallbacks = new List<Locator>
+                {
+                    new Locator { By = "name", Value = "username" },
+                    new Locator { By = "id", Value = "email" },
+                    new Locator { By = "id", Value = "username" },
+                    new Locator { By = "css", Value = "input[type='email']" },
+                    new Locator { By = "css", Value = "input[placeholder*='email'], input[placeholder*='Email']" },
+                    new Locator { By = "css", Value = "input[placeholder*='username'], input[placeholder*='Username']" },
+                    new Locator { By = "xpath", Value = "//input[contains(@placeholder, 'email') or contains(@placeholder, 'Email') or contains(@placeholder, 'username') or contains(@placeholder, 'Username')]" }
+                }
+            },
+            Value = withValidCredentials ? "rumon.onnorokom@gmail.com" : "invalid@test.com",
+            TimeoutMs = 5000,
+            Metadata = new StepMetadata { Tags = new List<string> { "@forms", "@login", "@input" } }
+        });
+
+        // 4. Fill password field  
+        steps.Add(new TestStep
+        {
+            Id = $"step-{stepCounter++:D3}",
+            Action = "input",
+            Target = new Target
+            {
+                Primary = new Locator { By = "name", Value = "password" },
+                Fallbacks = new List<Locator>
+                {
+                    new Locator { By = "id", Value = "password" },
+                    new Locator { By = "css", Value = "input[type='password']" },
+                    new Locator { By = "css", Value = "input[placeholder*='password'], input[placeholder*='Password']" },
+                    new Locator { By = "xpath", Value = "//input[@type='password' or contains(@placeholder, 'password') or contains(@placeholder, 'Password')]" }
+                }
+            },
+            Value = withValidCredentials ? "Mrumon4726" : "wrongpassword",
+            TimeoutMs = 5000,
+            Metadata = new StepMetadata { Tags = new List<string> { "@forms", "@login", "@input" } }
+        });
+
+        // 5. Submit login form
+        steps.Add(new TestStep
+        {
+            Id = $"step-{stepCounter++:D3}",
+            Action = "click",
+            Target = new Target
+            {
+                Primary = new Locator { By = "css", Value = "input[type='submit']" },
+                Fallbacks = new List<Locator>
+                {
+                    new Locator { By = "xpath", Value = "//button[contains(text(), 'Login') or contains(text(), 'Sign In') or contains(text(), 'Submit')]" },
+                    new Locator { By = "css", Value = "button[type='submit']" },
+                    new Locator { By = "css", Value = ".login-btn, .signin-btn, .submit-btn" },
+                    new Locator { By = "xpath", Value = "//input[@value='Login' or @value='Sign In' or @value='Submit']" },
+                    new Locator { By = "css", Value = "[data-testid*='login'], [data-cy*='login'], [data-testid*='submit']" }
+                }
+            },
+            Assertions = new List<Assertion>
+            {
+                new Assertion { Type = "statusOk", Value = "200" }
+            },
+            TimeoutMs = 10000,
+            Metadata = new StepMetadata { Tags = new List<string> { "@forms", "@login", "@submit" } }
+        });
+
+        // 6. Verify login result
+        if (withValidCredentials)
+        {
+            steps.Add(new TestStep
+            {
+                Id = $"step-{stepCounter++:D3}",
+                Action = "assert",
+                Target = new Target
+                {
+                    Primary = new Locator { By = "css", Value = ".success, .welcome, .dashboard" },
+                    Fallbacks = new List<Locator>
+                    {
+                        new Locator { By = "xpath", Value = "//text()[contains(., 'Welcome') or contains(., 'Dashboard') or contains(., 'Success')]" },
+                        new Locator { By = "css", Value = ".logout, .profile, .user-menu" },
+                        new Locator { By = "xpath", Value = "//a[contains(text(), 'Logout') or contains(text(), 'Profile')]" }
+                    }
+                },
+                Assertions = new List<Assertion>
+                {
+                    new Assertion { Type = "elementVisible", Value = "true" }
+                },
+                TimeoutMs = 5000,
+                Metadata = new StepMetadata { Tags = new List<string> { "@login", "@success", "@verification" } }
+            });
+        }
+        else
+        {
+            steps.Add(new TestStep
+            {
+                Id = $"step-{stepCounter++:D3}",
+                Action = "assert",
+                Target = new Target
+                {
+                    Primary = new Locator { By = "css", Value = ".error, .alert-danger, .login-error" },
+                    Fallbacks = new List<Locator>
+                    {
+                        new Locator { By = "xpath", Value = "//text()[contains(., 'Invalid') or contains(., 'Error') or contains(., 'incorrect')]" },
+                        new Locator { By = "css", Value = ".invalid-feedback, .field-error, .form-error" }
+                    }
+                },
+                Assertions = new List<Assertion>
+                {
+                    new Assertion { Type = "elementVisible", Value = "true" }
+                },
+                TimeoutMs = 5000,
+                Metadata = new StepMetadata { Tags = new List<string> { "@login", "@error", "@verification" } }
             });
         }
 
@@ -272,9 +483,9 @@ public class PlannerService : IPlannerService
     {
         return inputName.ToLower() switch
         {
-            "email" => "test@example.com",
-            "username" => "testuser",
-            "password" => "TestPassword123!",
+            "email" => "rumon.onnorokom@gmail.com",
+            "username" => "rumon.onnorokom@gmail.com",
+            "password" => "Mrumon4726",
             "name" or "firstname" => "Test",
             "lastname" => "User",
             "phone" => "555-0123",
