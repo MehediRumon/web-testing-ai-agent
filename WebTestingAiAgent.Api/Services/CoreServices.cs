@@ -40,7 +40,7 @@ public class PlannerService : IPlannerService
                 {
                     Primary = new Locator { By = "url", Value = baseUrl }
                 },
-                TimeoutMs = 10000,
+                TimeoutMs = 5000,
                 Metadata = new StepMetadata { Tags = new List<string> { "@separator", "@invalid-test-prep" } }
             });
             
@@ -122,7 +122,7 @@ public class PlannerService : IPlannerService
                 new Assertion { Type = "statusOk", Value = "200" },
                 new Assertion { Type = "elementVisible", Value = "body" }
             },
-            TimeoutMs = 10000,
+            TimeoutMs = 5000,
             Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@basic" } }
         });
 
@@ -186,7 +186,7 @@ public class PlannerService : IPlannerService
                 {
                     Primary = new Locator { By = "url", Value = baseUrl }
                 },
-                TimeoutMs = 10000,
+                TimeoutMs = 5000,
                 Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@back" } }
             });
         }
@@ -240,7 +240,7 @@ public class PlannerService : IPlannerService
                 {
                     new Assertion { Type = "statusOk", Value = "200" }
                 },
-                TimeoutMs = 10000,
+                TimeoutMs = 5000,
                 Metadata = new StepMetadata { Tags = new List<string> { "@forms", "@submit" } }
             });
         }
@@ -280,7 +280,7 @@ public class PlannerService : IPlannerService
         var steps = new List<TestStep>();
         int stepCounter = 1;
 
-        // 1. Navigate to main page
+        // 1. Navigate to main page - optimized timeout
         steps.Add(new TestStep
         {
             Id = $"step-{stepCounter++:D3}",
@@ -294,11 +294,11 @@ public class PlannerService : IPlannerService
                 new Assertion { Type = "statusOk", Value = "200" },
                 new Assertion { Type = "elementVisible", Value = "body" }
             },
-            TimeoutMs = 10000,
+            TimeoutMs = 5000, // Reduced from 10000 to 5000
             Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@login" } }
         });
 
-        // 2. Find and click login link/button
+        // 2. Find and click login link/button - optimized timeout
         steps.Add(new TestStep
         {
             Id = $"step-{stepCounter++:D3}",
@@ -316,7 +316,7 @@ public class PlannerService : IPlannerService
                     new Locator { By = "css", Value = ".login-link, .signin-link, .auth-link, [data-testid*='login'], [data-cy*='login']" }
                 }
             },
-            TimeoutMs = 10000,
+            TimeoutMs = 5000, // Reduced from 10000 to 5000
             Metadata = new StepMetadata { Tags = new List<string> { "@navigation", "@login" } }
         });
 
@@ -386,7 +386,7 @@ public class PlannerService : IPlannerService
             {
                 new Assertion { Type = "statusOk", Value = "200" }
             },
-            TimeoutMs = 10000,
+            TimeoutMs = 5000,
             Metadata = new StepMetadata { Tags = new List<string> { "@forms", "@login", "@submit" } }
         });
 
@@ -501,7 +501,7 @@ public class PlannerService : IPlannerService
         // Generate basic steps based on objective
         var steps = new List<TestStep>();
 
-        // Always start with navigation
+        // Always start with navigation - reduced timeout for faster execution
         steps.Add(new TestStep
         {
             Id = "navigate-01",
@@ -510,11 +510,11 @@ public class PlannerService : IPlannerService
             {
                 Primary = new Locator { By = "url", Value = baseUrl }
             },
-            TimeoutMs = 10000,
+            TimeoutMs = 5000, // Reduced from 10000 to 5000
             Metadata = new StepMetadata { Tags = new List<string> { "@navigation" } }
         });
 
-        // Add basic assertion for page load
+        // Add basic assertion for page load - reduced timeout
         steps.Add(new TestStep
         {
             Id = "assert-page-load",
@@ -523,7 +523,7 @@ public class PlannerService : IPlannerService
             {
                 new Assertion { Type = "statusOk", Value = "200" }
             },
-            TimeoutMs = 5000,
+            TimeoutMs = 3000, // Reduced from 5000 to 3000
             Metadata = new StepMetadata { Tags = new List<string> { "@assertion" } }
         });
 
@@ -557,12 +557,18 @@ public class ExecutorService : IExecutorService
             options.AddArgument("--window-size=1280,720");
             
             using var driver = new ChromeDriver(options);
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
+            // Reduce implicit wait for faster execution
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
+            // Set page load timeout to prevent hanging
+            driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(15);
             
             try
             {
-                foreach (var step in plan.Steps)
+                Console.WriteLine($"Starting execution of {plan.Steps.Count} steps...");
+                for (int i = 0; i < plan.Steps.Count; i++)
                 {
+                    var step = plan.Steps[i];
+                    Console.WriteLine($"Executing step {i + 1}/{plan.Steps.Count}: {step.Action} - {step.Id}");
                     var result = await ExecuteStepAsync(step, config, driver);
                     results.Add(result);
                     
@@ -625,7 +631,10 @@ public class ExecutorService : IExecutorService
             options.AddArgument("--window-size=1280,720");
             
             using var driver = new ChromeDriver(options);
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
+            // Reduce implicit wait for faster execution
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
+            // Set page load timeout to prevent hanging
+            driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(15);
             
             try
             {

@@ -67,6 +67,8 @@ else
                             <span class="badge @GetStatusBadgeClass(run.Status)">
                                 @run.Status.ToUpper()
                             </span>
+                            <br/>
+                            <small class="text-muted">@GetStatusDescription(run.Status)</small>
                         </td>
                         <td>
                             <div class="progress" style="width: 100px;">
@@ -258,9 +260,39 @@ else
         var start = run.StartedAt ?? run.CreatedAt;
         var duration = end - start;
         
+        // Show estimated remaining time for running tests
+        if (run.Status == "executing" || run.Status == "planning")
+        {
+            var estimatedTotal = TimeSpan.FromMinutes(2); // Estimated 2 minutes total
+            var remaining = estimatedTotal - duration;
+            if (remaining.TotalSeconds > 0)
+            {
+                if (duration.TotalMinutes > 1)
+                    return $"{duration.TotalMinutes:F1}m (~{remaining.TotalMinutes:F1}m left)";
+                else
+                    return $"{duration.TotalSeconds:F0}s (~{remaining.TotalSeconds:F0}s left)";
+            }
+        }
+        
+        // For completed or other statuses, show actual duration
         if (duration.TotalMinutes > 1)
             return $"{duration.TotalMinutes:F1}m";
         else
             return $"{duration.TotalSeconds:F0}s";
+    }
+    
+    private string GetStatusDescription(string status)
+    {
+        return status.ToLower() switch
+        {
+            "queued" => "Waiting to start...",
+            "planning" => "Generating test plan...",
+            "executing" => "Running tests...",
+            "completed" => "Successfully completed",
+            "completed_with_failures" => "Completed with some failures",
+            "error" => "Failed to execute",
+            "cancelled" => "Cancelled by user",
+            _ => status
+        };
     }
 }

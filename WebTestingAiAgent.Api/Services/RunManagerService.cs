@@ -91,26 +91,30 @@ public class RunManagerService : IRunManager
         
         try
         {
-            // Update status to planning
+            // Update status to planning with better messaging
             runStatus.Status = "planning";
             runStatus.StartedAt = DateTime.UtcNow;
             runStatus.Progress = 10;
+            Console.WriteLine($"[{runId[..8]}] Starting plan generation for objective: {request.Objective}");
 
             // Generate plan
             var config = request.Config ?? new AgentConfig();
             var plan = await _plannerService.CreatePlanAsync(request.Objective ?? "", request.BaseUrl, config);
             runStatus.Progress = 30;
+            Console.WriteLine($"[{runId[..8]}] Plan generated with {plan.Steps.Count} steps");
 
             // Update status to executing
             runStatus.Status = "executing";
             runStatus.Progress = 40;
+            Console.WriteLine($"[{runId[..8]}] Starting execution of test plan");
 
-            // Execute plan
+            // Execute plan with progress tracking
             var stepResults = await _executorService.ExecutePlanAsync(plan, config);
             
             // Update results as they complete
             runStatus.PartialResults = stepResults;
             runStatus.Progress = 90;
+            Console.WriteLine($"[{runId[..8]}] Execution completed. Processing results...");
 
             // Generate report
             var report = new RunReport
@@ -134,28 +138,46 @@ public class RunManagerService : IRunManager
             
             _reports[runId] = report;
             
-            // Complete the run
+            // Complete the run with detailed success messaging
+            var passedSteps = stepResults.Count(r => r.Status == "passed");
+            var failedSteps = stepResults.Count(r => r.Status == "failed");
+            var skippedSteps = stepResults.Count(r => r.Status == "skipped");
+            var endTime = runStatus.CompletedAt ?? DateTime.UtcNow;
+            var startTime = runStatus.StartedAt ?? runStatus.CreatedAt;
+            var totalDuration = endTime - startTime;
+            
             runStatus.Status = stepResults.Any(r => r.Status == "failed") ? "completed_with_failures" : "completed";
             runStatus.CompletedAt = DateTime.UtcNow;
             runStatus.Progress = 100;
+            
+            Console.WriteLine($"[{runId[..8]}] Run completed successfully!");
+            Console.WriteLine($"[{runId[..8]}] Results: {passedSteps} passed, {failedSteps} failed, {skippedSteps} skipped");
+            Console.WriteLine($"[{runId[..8]}] Total duration: {totalDuration.TotalSeconds:F1} seconds");
         }
         catch (Exception ex)
         {
-            // Don't immediately mark as failed - keep it visible for troubleshooting
+            // Enhanced error handling with detailed logging
+            Console.WriteLine($"[{runId[..8]}] Execution failed: {ex.Message}");
+            Console.WriteLine($"[{runId[..8]}] Error type: {ex.GetType().Name}");
+            
             runStatus.Status = "error";
             runStatus.CompletedAt = DateTime.UtcNow;
             runStatus.Progress = 100;
             
-            // Create error report
+            // Create detailed error report
+            var errorMessage = ex.Message.Contains("Chrome") || ex.Message.Contains("driver") 
+                ? "Browser setup failed. Please ensure Chrome browser and ChromeDriver are properly installed."
+                : $"Execution error: {ex.Message}";
+                
             _reports[runId] = new RunReport
             {
                 RunId = runId,
-                Objective = "Error during execution",
+                Objective = request.Objective ?? "Unknown objective",
                 Env = new RunEnvironment
                 {
                     Browser = "chromium",
                     Headless = (request.Config ?? new AgentConfig()).Headless,
-                    BaseUrl = "N/A"
+                    BaseUrl = request.BaseUrl ?? "N/A"
                 },
                 Summary = new RunSummary
                 {
@@ -168,11 +190,12 @@ public class RunManagerService : IRunManager
                 {
                     new StepResult
                     {
-                        StepId = "error",
+                        StepId = "execution-error",
                         Status = "failed",
                         Start = runStatus.CreatedAt,
                         End = DateTime.UtcNow,
-                        Error = new StepError { Message = ex.Message },
+                        Notes = errorMessage,
+                        Error = new StepError { Message = errorMessage },
                         Evidence = new Evidence()
                     }
                 },
