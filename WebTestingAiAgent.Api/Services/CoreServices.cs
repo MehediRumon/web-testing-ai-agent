@@ -702,38 +702,7 @@ public class ExecutorService : IExecutorService
         
         try
         {
-            var options = new ChromeOptions();
-            
-            // Auto-detect headless environment (no display available)
-            bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
-            
-            // Users can override headless mode by explicitly setting it to false, but warn about potential issues
-            bool shouldRunHeadless = config.Headless;
-            if (!config.Headless && isHeadlessEnvironment)
-            {
-                Console.WriteLine("⚠️  Warning: No DISPLAY environment variable detected, but headless mode is disabled.");
-                Console.WriteLine("   The browser may not be visible. Consider setting headless=true for server environments.");
-            }
-            
-            if (shouldRunHeadless)
-            {
-                options.AddArgument("--headless");
-                Console.WriteLine("Running in headless mode");
-            }
-            else
-            {
-                Console.WriteLine("Running in non-headless mode (browser will be visible)");
-            }
-            
-            // Enhanced options for better compatibility
-            options.AddArgument("--disable-dev-shm-usage");
-            options.AddArgument("--no-sandbox");
-            options.AddArgument("--disable-gpu");
-            options.AddArgument("--disable-extensions");
-            options.AddArgument("--disable-web-security");
-            options.AddArgument("--allow-running-insecure-content");
-            options.AddArgument("--window-size=1280,720");
-            options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
+            var options = CreateChromeOptions(config);
             
             using var driver = new ChromeDriver("/usr/bin", options);
             // Reduce implicit wait for faster execution
@@ -800,33 +769,7 @@ public class ExecutorService : IExecutorService
         
         try
         {
-            var options = new ChromeOptions();
-            
-            // Auto-detect headless environment (no display available)  
-            bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
-            
-            // Users can override headless mode by explicitly setting it to false, but warn about potential issues
-            bool shouldRunHeadless = config.Headless;
-            if (!config.Headless && isHeadlessEnvironment)
-            {
-                Console.WriteLine("⚠️  Warning: No DISPLAY environment variable detected, but headless mode is disabled.");
-                Console.WriteLine("   The browser may not be visible. Consider setting headless=true for server environments.");
-            }
-            
-            if (shouldRunHeadless)
-            {
-                options.AddArgument("--headless");
-            }
-            
-            // Enhanced options for better compatibility
-            options.AddArgument("--disable-dev-shm-usage");
-            options.AddArgument("--no-sandbox");
-            options.AddArgument("--disable-gpu");
-            options.AddArgument("--disable-extensions");
-            options.AddArgument("--disable-web-security");
-            options.AddArgument("--allow-running-insecure-content");
-            options.AddArgument("--window-size=1280,720");
-            options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
+            var options = CreateChromeOptions(config);
             
             using var driver = new ChromeDriver("/usr/bin", options);
             // Reduce implicit wait for faster execution
@@ -1163,6 +1106,48 @@ public class ExecutorService : IExecutorService
             // Don't fail the step if evidence capture fails
             stepResult.Evidence.Console.Add($"Evidence capture failed: {ex.Message}");
         }
+    }
+
+    private ChromeOptions CreateChromeOptions(AgentConfig config)
+    {
+        var options = new ChromeOptions();
+        
+        // Auto-detect headless environment (no display available)
+        bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
+        
+        // Users can override headless mode by explicitly setting it to false, but warn about potential issues
+        bool shouldRunHeadless = config.Headless;
+        if (!config.Headless && isHeadlessEnvironment)
+        {
+            Console.WriteLine("⚠️  Warning: No DISPLAY environment variable detected, but headless mode is disabled.");
+            Console.WriteLine("   The browser may not be visible. Consider setting headless=true for server environments.");
+        }
+        
+        if (shouldRunHeadless)
+        {
+            options.AddArgument("--headless");
+            Console.WriteLine("Running in headless mode");
+        }
+        else
+        {
+            Console.WriteLine("Running in non-headless mode (browser will be visible)");
+        }
+        
+        // Enhanced options for better compatibility
+        options.AddArgument("--disable-dev-shm-usage");
+        options.AddArgument("--no-sandbox");
+        options.AddArgument("--disable-gpu");
+        options.AddArgument("--disable-extensions");
+        options.AddArgument("--disable-web-security");
+        options.AddArgument("--allow-running-insecure-content");
+        options.AddArgument("--window-size=1280,720");
+        options.AddArgument("--user-agent=WebTestingAI-Agent/1.0 (Automated Testing)");
+        
+        // Use unique user data directory to avoid conflicts
+        var tempUserDataDir = Path.Combine(Path.GetTempPath(), $"chrome-user-data-{Guid.NewGuid():N}");
+        options.AddArgument($"--user-data-dir={tempUserDataDir}");
+        
+        return options;
     }
 
     private async Task EnsureChromeDriverInitializedAsync()
