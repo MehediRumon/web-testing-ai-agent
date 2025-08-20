@@ -1,0 +1,679 @@
+{
+  "runId": "7b1eb83d-f67e-4bfa-ad1f-879f525da201",
+  "baseUrl": "https://example.com",
+  "objective": "Test functionality",
+  "timeBudgetSeconds": 600,
+  "explorationDepth": 2,
+  "steps": [
+    {
+      "id": "step-001",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://example.com"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        },
+        {
+          "type": "elementVisible",
+          "value": "body"
+        }
+      ],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@basic"
+        ]
+      }
+    },
+    {
+      "id": "step-002",
+      "action": "assert",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": "header, .header, #header, h1, .banner"
+        },
+        "fallbacks": [
+          {
+            "by": "css",
+            "value": "h1, h2, h3"
+          },
+          {
+            "by": "css",
+            "value": "nav, .nav, .navbar"
+          },
+          {
+            "by": "css",
+            "value": ".logo, .brand, .site-title"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "elementVisible",
+          "value": "true"
+        }
+      ],
+      "timeoutMs": 5000,
+      "metadata": {
+        "tags": [
+          "@visibility",
+          "@basic",
+          "@optional"
+        ]
+      }
+    },
+    {
+      "id": "step-003",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "linkText",
+          "value": "Home"
+        },
+        "fallbacks": [
+          {
+            "by": "partialLinkText",
+            "value": "Home"
+          },
+          {
+            "by": "css",
+            "value": "a[href*=\u0027home\u0027], a[title*=\u0027Home\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(translate(text(), \u0027ABCDEFGHIJKLMNOPQRSTUVWXYZ\u0027, \u0027abcdefghijklmnopqrstuvwxyz\u0027), \u0027home\u0027)]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(@href, \u0027home\u0027)] | //button[contains(text(), \u0027Home\u0027)] | //*[@role=\u0027button\u0027][contains(text(), \u0027Home\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "[data-link*=\u0027home\u0027], [data-nav*=\u0027home\u0027], .nav-link, .menu-item"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        },
+        {
+          "type": "elementVisible",
+          "value": "body"
+        }
+      ],
+      "timeoutMs": 40000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@links",
+          "@optional"
+        ]
+      }
+    },
+    {
+      "id": "step-004",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://example.com"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@back"
+        ]
+      }
+    },
+    {
+      "id": "step-005",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "linkText",
+          "value": "About"
+        },
+        "fallbacks": [
+          {
+            "by": "partialLinkText",
+            "value": "About"
+          },
+          {
+            "by": "css",
+            "value": "a[href*=\u0027about\u0027], a[title*=\u0027About\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(translate(text(), \u0027ABCDEFGHIJKLMNOPQRSTUVWXYZ\u0027, \u0027abcdefghijklmnopqrstuvwxyz\u0027), \u0027about\u0027)]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(@href, \u0027about\u0027)] | //button[contains(text(), \u0027About\u0027)] | //*[@role=\u0027button\u0027][contains(text(), \u0027About\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "[data-link*=\u0027about\u0027], [data-nav*=\u0027about\u0027], .nav-link, .menu-item"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        },
+        {
+          "type": "elementVisible",
+          "value": "body"
+        }
+      ],
+      "timeoutMs": 40000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@links",
+          "@optional"
+        ]
+      }
+    },
+    {
+      "id": "step-006",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://example.com"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@back"
+        ]
+      }
+    },
+    {
+      "id": "step-007",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "linkText",
+          "value": "About Us"
+        },
+        "fallbacks": [
+          {
+            "by": "partialLinkText",
+            "value": "About Us"
+          },
+          {
+            "by": "css",
+            "value": "a[href*=\u0027about us\u0027], a[title*=\u0027About Us\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(translate(text(), \u0027ABCDEFGHIJKLMNOPQRSTUVWXYZ\u0027, \u0027abcdefghijklmnopqrstuvwxyz\u0027), \u0027about us\u0027)]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(@href, \u0027about us\u0027)] | //button[contains(text(), \u0027About Us\u0027)] | //*[@role=\u0027button\u0027][contains(text(), \u0027About Us\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "[data-link*=\u0027about us\u0027], [data-nav*=\u0027about us\u0027], .nav-link, .menu-item"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        },
+        {
+          "type": "elementVisible",
+          "value": "body"
+        }
+      ],
+      "timeoutMs": 40000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@links",
+          "@optional"
+        ]
+      }
+    },
+    {
+      "id": "step-008",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://example.com"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@back"
+        ]
+      }
+    },
+    {
+      "id": "step-009",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "linkText",
+          "value": "Contact"
+        },
+        "fallbacks": [
+          {
+            "by": "partialLinkText",
+            "value": "Contact"
+          },
+          {
+            "by": "css",
+            "value": "a[href*=\u0027contact\u0027], a[title*=\u0027Contact\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(translate(text(), \u0027ABCDEFGHIJKLMNOPQRSTUVWXYZ\u0027, \u0027abcdefghijklmnopqrstuvwxyz\u0027), \u0027contact\u0027)]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(@href, \u0027contact\u0027)] | //button[contains(text(), \u0027Contact\u0027)] | //*[@role=\u0027button\u0027][contains(text(), \u0027Contact\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "[data-link*=\u0027contact\u0027], [data-nav*=\u0027contact\u0027], .nav-link, .menu-item"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        },
+        {
+          "type": "elementVisible",
+          "value": "body"
+        }
+      ],
+      "timeoutMs": 40000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@links",
+          "@optional"
+        ]
+      }
+    },
+    {
+      "id": "step-010",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://example.com"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@back"
+        ]
+      }
+    },
+    {
+      "id": "step-011",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "linkText",
+          "value": "Contact Us"
+        },
+        "fallbacks": [
+          {
+            "by": "partialLinkText",
+            "value": "Contact Us"
+          },
+          {
+            "by": "css",
+            "value": "a[href*=\u0027contact us\u0027], a[title*=\u0027Contact Us\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(translate(text(), \u0027ABCDEFGHIJKLMNOPQRSTUVWXYZ\u0027, \u0027abcdefghijklmnopqrstuvwxyz\u0027), \u0027contact us\u0027)]"
+          },
+          {
+            "by": "xpath",
+            "value": "//a[contains(@href, \u0027contact us\u0027)] | //button[contains(text(), \u0027Contact Us\u0027)] | //*[@role=\u0027button\u0027][contains(text(), \u0027Contact Us\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "[data-link*=\u0027contact us\u0027], [data-nav*=\u0027contact us\u0027], .nav-link, .menu-item"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        },
+        {
+          "type": "elementVisible",
+          "value": "body"
+        }
+      ],
+      "timeoutMs": 40000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@links",
+          "@optional"
+        ]
+      }
+    },
+    {
+      "id": "step-012",
+      "action": "navigate",
+      "target": {
+        "primary": {
+          "by": "url",
+          "value": "https://example.com"
+        },
+        "fallbacks": [],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@navigation",
+          "@back"
+        ]
+      }
+    },
+    {
+      "id": "step-013",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": "input[type=\u0027submit\u0027], button[type=\u0027submit\u0027]"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//button[contains(text(), \u0027Submit\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "button"
+          },
+          {
+            "by": "css",
+            "value": "[type=\u0027submit\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@value=\u0027Submit\u0027 or @value=\u0027Send\u0027 or @value=\u0027Login\u0027 or @value=\u0027Sign In\u0027]"
+          },
+          {
+            "by": "css",
+            "value": ".submit-btn, .login-btn, .send-btn, [role=\u0027button\u0027]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        }
+      ],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@forms",
+          "@submit"
+        ]
+      }
+    },
+    {
+      "id": "step-014",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": "input[type=\u0027submit\u0027], button[type=\u0027submit\u0027]"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//button[contains(text(), \u0027Submit\u0027)]"
+          },
+          {
+            "by": "css",
+            "value": "button"
+          },
+          {
+            "by": "css",
+            "value": "[type=\u0027submit\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@value=\u0027Submit\u0027 or @value=\u0027Send\u0027 or @value=\u0027Login\u0027 or @value=\u0027Sign In\u0027]"
+          },
+          {
+            "by": "css",
+            "value": ".submit-btn, .login-btn, .send-btn, [role=\u0027button\u0027]"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [
+        {
+          "type": "statusOk",
+          "value": "200"
+        }
+      ],
+      "timeoutMs": 10000,
+      "metadata": {
+        "tags": [
+          "@forms",
+          "@submit"
+        ]
+      }
+    },
+    {
+      "id": "step-015",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": "input[value=\u0027Submit\u0027]"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//button[contains(text(), \u0027Submit\u0027)]"
+          },
+          {
+            "by": "partialLinkText",
+            "value": "Submit"
+          },
+          {
+            "by": "css",
+            "value": "[title*=\u0027Submit\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@value=\u0027Submit\u0027 or @title=\u0027Submit\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "button, [role=\u0027button\u0027], .btn"
+          },
+          {
+            "by": "css",
+            "value": ".submit-btn, .submit-button, #submit-btn"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 40000,
+      "metadata": {
+        "tags": [
+          "@buttons",
+          "@interaction",
+          "@optional"
+        ]
+      }
+    },
+    {
+      "id": "step-016",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": "input[value=\u0027Send\u0027]"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//button[contains(text(), \u0027Send\u0027)]"
+          },
+          {
+            "by": "partialLinkText",
+            "value": "Send"
+          },
+          {
+            "by": "css",
+            "value": "[title*=\u0027Send\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@value=\u0027Send\u0027 or @title=\u0027Send\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "button, [role=\u0027button\u0027], .btn"
+          },
+          {
+            "by": "css",
+            "value": ".send-btn, .send-button, #send-btn"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 40000,
+      "metadata": {
+        "tags": [
+          "@buttons",
+          "@interaction",
+          "@optional"
+        ]
+      }
+    },
+    {
+      "id": "step-017",
+      "action": "click",
+      "target": {
+        "primary": {
+          "by": "css",
+          "value": "input[value=\u0027Login\u0027]"
+        },
+        "fallbacks": [
+          {
+            "by": "xpath",
+            "value": "//button[contains(text(), \u0027Login\u0027)]"
+          },
+          {
+            "by": "partialLinkText",
+            "value": "Login"
+          },
+          {
+            "by": "css",
+            "value": "[title*=\u0027Login\u0027]"
+          },
+          {
+            "by": "xpath",
+            "value": "//input[@value=\u0027Login\u0027 or @title=\u0027Login\u0027]"
+          },
+          {
+            "by": "css",
+            "value": "button, [role=\u0027button\u0027], .btn"
+          },
+          {
+            "by": "css",
+            "value": ".login-btn, .login-button, #login-btn"
+          }
+        ],
+        "fingerprint": null
+      },
+      "value": null,
+      "assertions": [],
+      "timeoutMs": 40000,
+      "metadata": {
+        "tags": [
+          "@buttons",
+          "@interaction",
+          "@optional"
+        ]
+      }
+    }
+  ]
+}
