@@ -1,2 +1,19 @@
-# Temporary files created during testing
+# Build artifacts
+bin/
+obj/
+*.dll
+*.pdb
+*.cache
+*.deps.json
+*.runtimeconfig.json
+
+# Temporary test files
 WebTestingAiAgent.Cli/*.json
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+
+# User-specific files
+*.user
+*.suo
