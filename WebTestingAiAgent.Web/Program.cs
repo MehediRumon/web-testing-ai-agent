@@ -7,6 +7,6 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // Configure HttpClient for API communication
-builder.Services.AddScoped(sp => new HttpClient());
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("http://localhost:5146/") });
 
 await builder.Build().RunAsync();

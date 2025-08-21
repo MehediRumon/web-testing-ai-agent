@@ -21,6 +21,9 @@ builder.Services.AddCors(options =>
         });
 });
 
+// Register essential infrastructure services (needed by bug tracking)
+builder.Services.AddScoped<IStorageService, StorageService>();
+
 // Register bug tracking services
 builder.Services.AddSingleton<IBugStorageService, BugStorageService>();
 builder.Services.AddScoped<IBugService, BugService>();
