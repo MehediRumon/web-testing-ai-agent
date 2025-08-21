@@ -10,6 +10,17 @@ public class ValidationService : IValidationService
         await Task.CompletedTask;
         var errors = new List<ValidationError>();
 
+        // Handle null request
+        if (request == null)
+        {
+            errors.Add(new ValidationError
+            {
+                Field = "request",
+                Message = "Request cannot be null"
+            });
+            return errors;
+        }
+
         // FR-INPUT-01: Objective validation (min 5 chars, max 4000) - OPTIONAL for auto-discovery
         if (!string.IsNullOrWhiteSpace(request.Objective))
         {

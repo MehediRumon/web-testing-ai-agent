@@ -11,6 +11,12 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Core", "W
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Cli", "WebTestingAiAgent.Cli\WebTestingAiAgent.Cli.csproj", "{443DA9F4-D49A-46A2-B444-12B402065BA7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Core.Tests", "WebTestingAiAgent.Core.Tests\WebTestingAiAgent.Core.Tests.csproj", "{260E3394-3D0E-4482-8577-F392D79E414A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Api.Tests", "WebTestingAiAgent.Api.Tests\WebTestingAiAgent.Api.Tests.csproj", "{CD52D4B4-01E7-4660-8C91-155D3D0D850D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebTestingAiAgent.Cli.Tests", "WebTestingAiAgent.Cli.Tests\WebTestingAiAgent.Cli.Tests.csproj", "{8CDFFEFD-699A-4E04-92C9-948DADABA965}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +42,17 @@ Global
 		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{443DA9F4-D49A-46A2-B444-12B402065BA7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{260E3394-3D0E-4482-8577-F392D79E414A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{260E3394-3D0E-4482-8577-F392D79E414A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{260E3394-3D0E-4482-8577-F392D79E414A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{260E3394-3D0E-4482-8577-F392D79E414A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CD52D4B4-01E7-4660-8C91-155D3D0D850D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD52D4B4-01E7-4660-8C91-155D3D0D850D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD52D4B4-01E7-4660-8C91-155D3D0D850D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD52D4B4-01E7-4660-8C91-155D3D0D850D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8CDFFEFD-699A-4E04-92C9-948DADABA965}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CDFFEFD-699A-4E04-92C9-948DADABA965}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CDFFEFD-699A-4E04-92C9-948DADABA965}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CDFFEFD-699A-4E04-92C9-948DADABA965}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

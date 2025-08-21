@@ -7,6 +7,12 @@ obj/
 *.deps.json
 *.runtimeconfig.json
 
+# Test results
+TestResults/
+*.trx
+*.runsettings
+coverage/
+
 # Temporary test files
 WebTestingAiAgent.Cli/*.json
 

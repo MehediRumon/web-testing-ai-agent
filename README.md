@@ -95,6 +95,13 @@ Command-line interface supporting:
 - Report generation commands
 - Help and validation
 
+### ✅ Automated Testing
+- **Unit Tests**: Core models, configuration, and validation logic
+- **Integration Tests**: API endpoints with TestServer framework
+- **CLI Tests**: Command-line interface with process execution testing
+- **47+ test cases** covering critical functionality
+- **Continuous Testing**: `dotnet test` and automated test runner script
+
 ### 🔄 In Progress (Stub Implementations)
 The following components have service interfaces and basic implementations but require full development:
 
@@ -190,17 +197,43 @@ The system supports extensive configuration through the `AgentConfig` model:
 
 ## Testing
 
-The current implementation includes:
-- API endpoint validation and error handling
-- Form validation in the web interface
-- CLI command structure and basic functionality
-- Service interface compliance
+The project now includes comprehensive automated testing infrastructure:
 
-For manual testing:
-1. Start the API server
-2. Use Swagger UI to test endpoints directly
-3. Start the web application to test the user interface
-4. Use the CLI tool to test command-line functionality
+### Automated Test Coverage
+- **Core Model Tests** (`WebTestingAiAgent.Core.Tests`): Unit tests for data models, configuration validation, and API models
+- **API Integration Tests** (`WebTestingAiAgent.Api.Tests`): Full HTTP endpoint testing using TestServer
+- **CLI Integration Tests** (`WebTestingAiAgent.Cli.Tests`): Command-line interface testing with real process execution
+- **Validation Service Tests**: Input validation, error handling, and business logic testing
+
+### Running Tests
+
+**Quick test run:**
+```bash
+dotnet test
+```
+
+**Detailed test run with results:**
+```bash
+dotnet test --verbosity normal --logger "trx" --results-directory ./TestResults
+```
+
+**Using the test script:**
+```bash
+./run-tests.sh
+```
+
+### Test Statistics
+- **47+ test cases** covering core functionality
+- **Unit tests** for models and validation logic
+- **Integration tests** for API endpoints and CLI commands
+- **Automated validation** of JSON serialization and HTTP responses
+
+### Manual Testing (Still Available)
+For interactive testing:
+1. Start the API server: `cd WebTestingAiAgent.Api && dotnet run`
+2. Use Swagger UI: http://localhost:5146/swagger
+3. Start the web application: `cd WebTestingAiAgent.Web && dotnet run`
+4. Test CLI commands: `cd WebTestingAiAgent.Cli && dotnet run -- --help`
 
 ## License
 
