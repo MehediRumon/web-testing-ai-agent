@@ -19,56 +19,19 @@ public class UserContextService : IUserContextService
 {
     private readonly HttpClient _httpClient;
     private User? _currentUser;
-    private string _currentUserId = "super-admin-1"; // Default for demo
+    private string _currentUserId = string.Empty;
 
-    // Demo users for different roles
+    // Only one hardcoded super admin user
     private readonly Dictionary<string, User> _demoUsers = new()
     {
         ["super-admin-1"] = new User
         {
             Id = "super-admin-1",
             Username = "superadmin",
-            Email = "admin@demo.com",
+            Email = "admin@bugtracksystem.com",
             FullName = "Super Administrator",
             Role = UserRole.SuperAdmin,
-            IsActive = true
-        },
-        ["dev-lead-1"] = new User
-        {
-            Id = "dev-lead-1",
-            Username = "devlead",
-            Email = "devlead@demo.com",
-            FullName = "Development Lead",
-            Role = UserRole.DeveloperLead,
-            IsActive = true
-        },
-        ["qa-lead-1"] = new User
-        {
-            Id = "qa-lead-1",
-            Username = "qalead",
-            Email = "qalead@demo.com",
-            FullName = "QA Lead",
-            Role = UserRole.QALead,
-            IsActive = true
-        },
-        ["tester-1"] = new User
-        {
-            Id = "tester-1",
-            Username = "tester",
-            Email = "tester@demo.com",
-            FullName = "QA Tester",
-            Role = UserRole.Tester,
-            LeadId = "qa-lead-1",
-            IsActive = true
-        },
-        ["developer-1"] = new User
-        {
-            Id = "developer-1",
-            Username = "developer",
-            Email = "dev@demo.com",
-            FullName = "Software Developer",
-            Role = UserRole.Developer,
-            LeadId = "dev-lead-1",
+            Password = "admin123", // In real app, this would be hashed
             IsActive = true
         }
     };
@@ -83,6 +46,9 @@ public class UserContextService : IUserContextService
         if (_currentUser != null) 
             return _currentUser;
 
+        if (string.IsNullOrEmpty(_currentUserId))
+            return null;
+
         // Try to get from API first, fallback to demo user
         try
         {
@@ -91,6 +57,7 @@ public class UserContextService : IUserContextService
             {
                 var json = await response.Content.ReadAsStringAsync();
                 // Parse and set _currentUser from API response
+                // For now, we'll use demo users
             }
         }
         catch
@@ -98,8 +65,8 @@ public class UserContextService : IUserContextService
             // API not available, use demo user
         }
 
-        // Use demo user
-        _currentUser = _demoUsers.TryGetValue(_currentUserId, out var user) ? user : _demoUsers["super-admin-1"];
+        // Use demo user or return null if not found
+        _currentUser = _demoUsers.TryGetValue(_currentUserId, out var user) ? user : null;
         return _currentUser;
     }
 

@@ -1,15 +1,27 @@
 @page "/users"
 @using System.Text.Json
+@using WebTestingAiAgent.Web.Services
+@using WebTestingAiAgent.Core.Models
 @inject HttpClient Http
 @inject IJSRuntime JSInterop
+@inject IUserContextService UserContext
 
 <PageTitle>User Management - Web Testing AI Agent</PageTitle>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>User Management</h1>
-    <button class="btn btn-primary" @onclick="ShowCreateUserModal">
-        <i class="bi bi-person-plus"></i> Add User
-    </button>
+    <h1>
+        <i class="bi bi-people-fill me-2"></i>User Management
+        @if (currentUser != null)
+        {
+            <small class="text-muted">(@GetManagementScope())</small>
+        }
+    </h1>
+    @if (UserContext.CanManageUsers())
+    {
+        <button class="btn btn-primary" @onclick="ShowCreateUserModal">
+            <i class="bi bi-person-plus"></i> Add User
+        </button>
+    }
 </div>
 
 <!-- Role Filter -->
@@ -153,14 +165,32 @@ else
                     </div>
                     
                     <div class="mb-3">
+                        <label class="form-label">Password <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="userForm.Password" type="password" 
+                                 placeholder="Enter initial password" />
+                        <ValidationMessage For="@(() => userForm.Password)" class="text-danger" />
+                        <small class="form-text text-muted">User can change password after first login</small>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label class="form-label">Role <span class="text-danger">*</span></label>
                         <InputSelect class="form-select" @bind-Value="userForm.Role">
-                            <option value="0">Super Admin</option>
-                            <option value="1">Developer Lead</option>
-                            <option value="2">QA Lead</option>
-                            <option value="3">Tester</option>
-                            <option value="4">Developer</option>
-                            <option value="5">Admin</option>
+                            @if (currentUser?.Role == UserRole.SuperAdmin)
+                            {
+                                <option value="1">Developer Lead</option>
+                                <option value="2">QA Lead</option>
+                                <option value="3">Tester</option>
+                                <option value="4">Developer</option>
+                                <option value="5">Admin</option>
+                            }
+                            else if (currentUser?.Role == UserRole.DeveloperLead)
+                            {
+                                <option value="4">Developer</option>
+                            }
+                            else if (currentUser?.Role == UserRole.QALead)
+                            {
+                                <option value="3">Tester</option>
+                            }
                         </InputSelect>
                         <ValidationMessage For="@(() => userForm.Role)" class="text-danger" />
                     </div>
@@ -217,6 +247,7 @@ else
     private List<UserResponse>? leads;
     private UserForm userForm = new();
     private UserResponse? editingUser;
+    private User? currentUser;
     private bool loading = true;
     private bool showModal = false;
     private bool isSubmitting = false;
@@ -226,6 +257,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        currentUser = await UserContext.GetCurrentUserAsync();
         await LoadUsers();
         await LoadLeads();
     }
@@ -387,6 +419,17 @@ else
         _ => "bg-light text-dark"
     };
 
+    private string GetManagementScope()
+    {
+        return currentUser?.Role switch
+        {
+            UserRole.SuperAdmin => "All Users",
+            UserRole.DeveloperLead => "Developers",
+            UserRole.QALead => "Testers",
+            _ => "Team"
+        };
+    }
+
     // Models
     public class UserResponse
     {
@@ -402,9 +445,20 @@ else
     
     public class UserForm
     {
+        [Required(ErrorMessage = "Username is required")]
         public string Username { get; set; } = string.Empty;
+        
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
         public string Email { get; set; } = string.Empty;
+        
+        [Required(ErrorMessage = "Full name is required")]
         public string FullName { get; set; } = string.Empty;
+        
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters long")]
+        public string Password { get; set; } = string.Empty;
+        
         public int Role { get; set; }
         public string? LeadId { get; set; }
         public bool IsActive { get; set; } = true;
