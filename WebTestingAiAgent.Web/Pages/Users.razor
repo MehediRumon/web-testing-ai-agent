@@ -1,0 +1,412 @@
+@page "/users"
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JSInterop
+
+<PageTitle>User Management - Web Testing AI Agent</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>User Management</h1>
+    <button class="btn btn-primary" @onclick="ShowCreateUserModal">
+        <i class="bi bi-person-plus"></i> Add User
+    </button>
+</div>
+
+<!-- Role Filter -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filter by Role</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <select class="form-select" @bind="selectedRole" @bind:after="LoadUsers">
+                    <option value="">All Roles</option>
+                    <option value="0">Super Admin</option>
+                    <option value="1">Developer Lead</option>
+                    <option value="2">QA Lead</option>
+                    <option value="3">Tester</option>
+                    <option value="4">Developer</option>
+                    <option value="5">Admin</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (loading)
+{
+    <div class="text-center py-4">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading users...</p>
+    </div>
+}
+else if (users == null || !users.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No users found.
+    </div>
+}
+else
+{
+    <div class="row">
+        @foreach (var user in users)
+        {
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="badge @GetRoleBadgeClass(user.Role)">
+                                @GetRoleDisplayName(user.Role)
+                            </span>
+                            <span class="badge @(user.IsActive ? "bg-success" : "bg-secondary")">
+                                @(user.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title">@user.FullName</h6>
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="bi bi-person"></i> @user.Username<br />
+                                <i class="bi bi-envelope"></i> @user.Email
+                            </small>
+                        </p>
+                        
+                        @if (!string.IsNullOrEmpty(user.LeadName))
+                        {
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <i class="bi bi-person-badge"></i> Reports to: @user.LeadName
+                                </small>
+                            </p>
+                        }
+                        
+                        <p class="card-text">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar"></i> Created: @user.CreatedAt.ToString("MMM dd, yyyy")
+                            </small>
+                        </p>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between">
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => EditUser(user)">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteUser(user)">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3">
+        <i class="bi bi-exclamation-triangle"></i> @errorMessage
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success mt-3">
+        <i class="bi bi-check-circle"></i> @successMessage
+    </div>
+}
+
+<!-- Create/Edit User Modal -->
+<div class="modal fade @(showModal ? "show" : "")" style="display: @(showModal ? "block" : "none")" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@(editingUser == null ? "Add New User" : "Edit User")</h5>
+                <button type="button" class="btn-close" @onclick="CloseModal"></button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="userForm" OnValidSubmit="SaveUser">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Username <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="userForm.Username" 
+                                 disabled="@(editingUser != null)" />
+                        <ValidationMessage For="@(() => userForm.Username)" class="text-danger" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="userForm.Email" type="email" />
+                        <ValidationMessage For="@(() => userForm.Email)" class="text-danger" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="userForm.FullName" />
+                        <ValidationMessage For="@(() => userForm.FullName)" class="text-danger" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Role <span class="text-danger">*</span></label>
+                        <InputSelect class="form-select" @bind-Value="userForm.Role">
+                            <option value="0">Super Admin</option>
+                            <option value="1">Developer Lead</option>
+                            <option value="2">QA Lead</option>
+                            <option value="3">Tester</option>
+                            <option value="4">Developer</option>
+                            <option value="5">Admin</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => userForm.Role)" class="text-danger" />
+                    </div>
+                    
+                    @if (userForm.Role == 3 || userForm.Role == 4) // Tester or Developer
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Lead <span class="text-danger">*</span></label>
+                            <select class="form-select" @bind="userForm.LeadId">
+                                <option value="">Select a lead...</option>
+                                @if (leads != null)
+                                {
+                                    @foreach (var lead in leads)
+                                    {
+                                        <option value="@lead.Id">@lead.FullName</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    }
+                    
+                    @if (editingUser != null)
+                    {
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <InputCheckbox class="form-check-input" @bind-Value="userForm.IsActive" />
+                                <label class="form-check-label">
+                                    Active
+                                </label>
+                            </div>
+                        </div>
+                    }
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary me-2" @onclick="CloseModal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            @(editingUser == null ? "Create User" : "Update User")
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<UserResponse>? users;
+    private List<UserResponse>? leads;
+    private UserForm userForm = new();
+    private UserResponse? editingUser;
+    private bool loading = true;
+    private bool showModal = false;
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string selectedRole = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+        await LoadLeads();
+    }
+    
+    private async Task LoadUsers()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = string.Empty;
+            
+            var url = "http://localhost:5146/api/users";
+            if (!string.IsNullOrEmpty(selectedRole))
+            {
+                url += $"?role={selectedRole}";
+            }
+            
+            var response = await Http.GetAsync(url);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                users = JsonSerializer.Deserialize<List<UserResponse>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            else
+            {
+                errorMessage = $"Failed to load users: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading users: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+    
+    private async Task LoadLeads()
+    {
+        try
+        {
+            var response = await Http.GetAsync("http://localhost:5146/api/users/leads");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                leads = JsonSerializer.Deserialize<List<UserResponse>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading leads: {ex.Message}");
+        }
+    }
+    
+    private void ShowCreateUserModal()
+    {
+        editingUser = null;
+        userForm = new UserForm();
+        showModal = true;
+    }
+    
+    private void EditUser(UserResponse user)
+    {
+        editingUser = user;
+        userForm = new UserForm
+        {
+            Username = user.Username,
+            Email = user.Email,
+            FullName = user.FullName,
+            Role = user.Role,
+            IsActive = user.IsActive
+        };
+        showModal = true;
+    }
+    
+    private void CloseModal()
+    {
+        showModal = false;
+        editingUser = null;
+        userForm = new UserForm();
+    }
+    
+    private async Task SaveUser()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = string.Empty;
+            
+            // TODO: Implement actual save functionality
+            await Task.Delay(1000); // Simulate API call
+            
+            successMessage = editingUser == null ? "User created successfully!" : "User updated successfully!";
+            CloseModal();
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving user: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+    
+    private async Task ConfirmDeleteUser(UserResponse user)
+    {
+        if (await JSInterop.InvokeAsync<bool>("confirm", $"Are you sure you want to delete user '{user.FullName}'?"))
+        {
+            await DeleteUser(user);
+        }
+    }
+    
+    private async Task DeleteUser(UserResponse user)
+    {
+        try
+        {
+            // TODO: Implement actual delete functionality
+            await Task.Delay(500); // Simulate API call
+            
+            successMessage = $"User '{user.FullName}' deleted successfully!";
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting user: {ex.Message}";
+        }
+    }
+    
+    // Helper methods
+    private string GetRoleDisplayName(int role) => role switch
+    {
+        0 => "Super Admin",
+        1 => "Developer Lead",
+        2 => "QA Lead",
+        3 => "Tester",
+        4 => "Developer",
+        5 => "Admin",
+        _ => "Unknown"
+    };
+    
+    private string GetRoleBadgeClass(int role) => role switch
+    {
+        0 => "bg-danger",
+        1 => "bg-primary",
+        2 => "bg-info",
+        3 => "bg-warning text-dark",
+        4 => "bg-success",
+        5 => "bg-secondary",
+        _ => "bg-light text-dark"
+    };
+
+    // Models
+    public class UserResponse
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public int Role { get; set; }
+        public string? LeadName { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsActive { get; set; }
+    }
+    
+    public class UserForm
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public int Role { get; set; }
+        public string? LeadId { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}
