@@ -1,9 +1,15 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Web Testing AI Agent</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <a class="navbar-brand" href="">
+            <i class="bi bi-bug-fill me-2"></i>Bug Tracking System
+        </a>
+        <div class="d-flex align-items-center">
+            <span class="text-light me-3">Welcome, Guest</span>
+            <a href="/login" class="btn btn-outline-light btn-sm me-2">Login</a>
+            <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -14,40 +20,42 @@
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Dashboard
             </NavLink>
         </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="create-run">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Create Run
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="runs">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Active Runs
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="reports">
-                <span class="bi bi-file-earmark-text-nav-menu" aria-hidden="true"></span> Reports
-            </NavLink>
-        </div>
         
-        <!-- Bug Tracking Section -->
+        <!-- Bug Management Section -->
         <hr class="text-white-50" />
         <div class="nav-item px-3">
-            <small class="text-white-50 fw-bold">BUG TRACKING</small>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="bugs">
-                <span class="bi bi-bug-fill-nav-menu" aria-hidden="true"></span> Bug List
-            </NavLink>
+            <small class="text-white-50 fw-bold">BUG MANAGEMENT</small>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="bugs/create">
-                <span class="bi bi-plus-circle-fill-nav-menu" aria-hidden="true"></span> Report Bug
+                <span class="bi bi-plus-circle-fill-nav-menu text-danger" aria-hidden="true"></span> Report Bug
             </NavLink>
         </div>
         <div class="nav-item px-3">
+            <NavLink class="nav-link" href="bugs">
+                <span class="bi bi-list-task-nav-menu text-primary" aria-hidden="true"></span> View All Bugs
+            </NavLink>
+        </div>
+        
+        <!-- Administration Section -->
+        <hr class="text-white-50" />
+        <div class="nav-item px-3">
+            <small class="text-white-50 fw-bold">ADMINISTRATION</small>
+        </div>
+        <div class="nav-item px-3">
             <NavLink class="nav-link" href="users">
-                <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> Users
+                <span class="bi bi-people-fill-nav-menu text-success" aria-hidden="true"></span> User Management
+            </NavLink>
+        </div>
+        
+        <!-- Account Section -->
+        <hr class="text-white-50" />
+        <div class="nav-item px-3">
+            <small class="text-white-50 fw-bold">ACCOUNT</small>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="login">
+                <span class="bi bi-box-arrow-in-right-nav-menu text-warning" aria-hidden="true"></span> Login
             </NavLink>
         </div>
     </nav>
