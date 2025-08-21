@@ -21,7 +21,7 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Register application services
+// Register application services (existing web testing services)
 builder.Services.AddSingleton<IRunManager, RunManagerService>();
 builder.Services.AddScoped<IValidationService, ValidationService>();
 builder.Services.AddSingleton<IPlannerService, PlannerService>();
@@ -31,6 +31,14 @@ builder.Services.AddScoped<IHealingService, HealingService>();
 builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddScoped<IIntegrationService, IntegrationService>();
 builder.Services.AddScoped<IStorageService, StorageService>();
+
+// Register bug tracking services
+builder.Services.AddSingleton<IBugStorageService, BugStorageService>();
+builder.Services.AddScoped<IBugService, BugService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IBugAuthorizationService, BugAuthorizationService>();
+builder.Services.AddScoped<IBugValidationService, BugValidationService>();
+builder.Services.AddScoped<IBugImageService, BugImageService>();
 
 var app = builder.Build();
 
