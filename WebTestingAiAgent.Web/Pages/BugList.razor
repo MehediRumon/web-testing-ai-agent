@@ -92,89 +92,107 @@ else if (bugs == null || !bugs.Any())
 }
 else
 {
-    <div class="row">
-        @foreach (var bug in bugs)
-        {
-            <div class="col-md-6 col-lg-4 mb-3">
-                <div class="card h-100 @GetCardBorderClass(bug.Priority)">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <small class="text-muted">@bug.Id[..8]...</small>
+    <!-- Modern Data Table -->
+    <div class="table-responsive">
+        <table class="table table-modern">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Type</th>
+                    <th>Assignee</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var bug in bugs)
+                {
+                    <tr class="@GetStatusRowClass(bug.Status) @GetPriorityRowClass(bug.Priority)">
+                        <td>
+                            <code class="text-muted">@bug.Id[..8]...</code>
+                            @if (bug.ReopenCount > 0)
+                            {
+                                <br><small class="text-warning">
+                                    <i class="bi bi-arrow-clockwise"></i> @bug.ReopenCount reopens
+                                </small>
+                            }
+                        </td>
+                        <td>
+                            <div class="fw-bold">@bug.Title</div>
+                            @if (!string.IsNullOrEmpty(bug.Description))
+                            {
+                                <small class="text-muted d-block">
+                                    @(bug.Description.Length > 80 ? bug.Description.Substring(0, 80) + "..." : bug.Description)
+                                </small>
+                            }
+                            @if (!string.IsNullOrEmpty(bug.UrlMenu))
+                            {
+                                <small class="text-info d-block">
+                                    <i class="bi bi-globe"></i> @bug.UrlMenu
+                                </small>
+                            }
+                        </td>
+                        <td>
                             <span class="badge @GetStatusBadgeClass(bug.Status)">
                                 @GetStatusDisplayName(bug.Status)
                             </span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <h6 class="card-title">
-                            <span class="badge @GetPriorityBadgeClass(bug.Priority) me-2">
+                        </td>
+                        <td>
+                            <span class="badge @GetPriorityBadgeClass(bug.Priority)">
                                 @GetPriorityDisplayName(bug.Priority)
                             </span>
-                            @bug.Title
-                        </h6>
-                        
-                        @if (!string.IsNullOrEmpty(bug.Description))
-                        {
-                            <p class="card-text text-muted small">
-                                @(bug.Description.Length > 100 ? bug.Description.Substring(0, 100) + "..." : bug.Description)
-                            </p>
-                        }
-                        
-                        <div class="small text-muted mb-2">
-                            <i class="bi bi-globe"></i> @bug.UrlMenu
-                        </div>
-                        
-                        <div class="small text-muted mb-2">
-                            <i class="bi bi-tag"></i> @GetBugTypeDisplayName(bug.BugType)
-                        </div>
-                        
-                        <div class="small text-muted mb-2">
-                            <i class="bi bi-person"></i> Submitted by: @bug.SubmittedByName
-                        </div>
-                        
-                        @if (!string.IsNullOrEmpty(bug.PrimaryAssigneeName))
-                        {
-                            <div class="small text-muted mb-2">
-                                <i class="bi bi-person-check"></i> Assigned to: @bug.PrimaryAssigneeName
-                                @if (!string.IsNullOrEmpty(bug.SecondaryAssigneeName))
-                                {
-                                    <text>, @bug.SecondaryAssigneeName</text>
-                                }
+                        </td>
+                        <td>
+                            <span class="small">@GetBugTypeDisplayName(bug.BugType)</span>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrEmpty(bug.PrimaryAssigneeName))
+                            {
+                                <div class="small">
+                                    <i class="bi bi-person-check text-success"></i> @bug.PrimaryAssigneeName
+                                    @if (!string.IsNullOrEmpty(bug.SecondaryAssigneeName))
+                                    {
+                                        <br><span class="text-muted">+ @bug.SecondaryAssigneeName</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Unassigned</span>
+                            }
+                            <div class="small text-muted mt-1">
+                                <i class="bi bi-person"></i> @bug.SubmittedByName
                             </div>
-                        }
-                        
-                        @if (bug.ReopenCount > 0)
-                        {
-                            <div class="small text-warning mb-2">
-                                <i class="bi bi-arrow-clockwise"></i> Reopened @bug.ReopenCount time(s)
+                        </td>
+                        <td>
+                            <div class="small">@bug.SubmittedAt.ToString("MMM dd, yyyy")</div>
+                            <div class="small text-muted">@bug.SubmittedAt.ToString("HH:mm")</div>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="/bugs/@bug.Id" class="btn btn-outline-primary" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="/bugs/@bug.Id/edit" class="btn btn-outline-secondary" title="Edit Bug">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
                             </div>
-                        }
-                        
-                        <div class="small text-muted">
-                            <i class="bi bi-calendar"></i> @bug.SubmittedAt.ToString("MMM dd, yyyy")
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <div class="d-flex justify-content-between">
-                            <a href="/bugs/@bug.Id" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-eye"></i> View
-                            </a>
-                            <a href="/bugs/@bug.Id/edit" class="btn btn-sm btn-outline-secondary">
-                                <i class="bi bi-pencil"></i> Edit
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
     
-    <!-- Pagination -->
+    <!-- Enhanced Pagination -->
     <nav aria-label="Bug list pagination" class="mt-4">
         <ul class="pagination justify-content-center">
             <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
                 <button class="page-link" @onclick="() => ChangePage(currentPage - 1)" disabled="@(currentPage <= 1)">
-                    Previous
+                    <i class="bi bi-chevron-left"></i> Previous
                 </button>
             </li>
             
@@ -187,7 +205,7 @@ else
             
             <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
                 <button class="page-link" @onclick="() => ChangePage(currentPage + 1)" disabled="@(currentPage >= totalPages)">
-                    Next
+                    Next <i class="bi bi-chevron-right"></i>
                 </button>
             </li>
         </ul>
@@ -357,6 +375,28 @@ else
         1 => "border-danger",
         2 => "border-warning",
         3 => "border-info",
+        _ => ""
+    };
+
+    // New helper methods for table styling
+    private string GetStatusRowClass(int status) => status switch
+    {
+        0 => "status-pending",
+        1 => "status-dev-running",
+        2 => "status-need-test",
+        3 => "status-test-running",
+        4 => "status-solved",
+        5 => "status-postpone",
+        6 => "status-invalid",
+        7 => "status-canceled",
+        _ => ""
+    };
+
+    private string GetPriorityRowClass(int priority) => priority switch
+    {
+        1 => "priority-top",
+        2 => "priority-medium",
+        3 => "priority-low",
         _ => ""
     };
 
