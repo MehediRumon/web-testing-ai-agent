@@ -1,0 +1,383 @@
+@page "/bugs"
+@using System.Text.Json
+@inject HttpClient Http
+
+<PageTitle>Bug List - Web Testing AI Agent</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Bug List</h1>
+    <a href="/bugs/create" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Report New Bug
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" @bind="selectedStatus">
+                    <option value="">All Statuses</option>
+                    <option value="0">Pending</option>
+                    <option value="1">Dev Running</option>
+                    <option value="2">Need to Test</option>
+                    <option value="3">Test Running</option>
+                    <option value="4">Solved</option>
+                    <option value="5">Postpone</option>
+                    <option value="6">Invalid</option>
+                    <option value="7">Canceled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Priority</label>
+                <select class="form-select" @bind="selectedPriority">
+                    <option value="">All Priorities</option>
+                    <option value="0">Regular</option>
+                    <option value="1">Top</option>
+                    <option value="2">Medium</option>
+                    <option value="3">Low</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Bug Type</label>
+                <select class="form-select" @bind="selectedBugType">
+                    <option value="">All Types</option>
+                    <option value="0">UI/UX (PC)</option>
+                    <option value="1">UI/UX (Mobile)</option>
+                    <option value="2">UI/UX (PC & Mobile)</option>
+                    <option value="3">Functional</option>
+                    <option value="4">Functional Enhancement</option>
+                    <option value="5">Business Logic</option>
+                    <option value="6">Load Test</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Search</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Search title..." @bind="searchTerm" />
+                    <button class="btn btn-outline-secondary" type="button" @onclick="LoadBugs">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <button class="btn btn-primary" @onclick="LoadBugs">Apply Filters</button>
+                <button class="btn btn-outline-secondary ms-2" @onclick="ClearFilters">Clear Filters</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (loading)
+{
+    <div class="text-center py-4">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading bugs...</p>
+    </div>
+}
+else if (bugs == null || !bugs.Any())
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i>
+        No bugs found. <a href="/bugs/create">Report the first bug</a>!
+    </div>
+}
+else
+{
+    <div class="row">
+        @foreach (var bug in bugs)
+        {
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 @GetCardBorderClass(bug.Priority)">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <small class="text-muted">@bug.Id[..8]...</small>
+                            <span class="badge @GetStatusBadgeClass(bug.Status)">
+                                @GetStatusDisplayName(bug.Status)
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <span class="badge @GetPriorityBadgeClass(bug.Priority) me-2">
+                                @GetPriorityDisplayName(bug.Priority)
+                            </span>
+                            @bug.Title
+                        </h6>
+                        
+                        @if (!string.IsNullOrEmpty(bug.Description))
+                        {
+                            <p class="card-text text-muted small">
+                                @(bug.Description.Length > 100 ? bug.Description.Substring(0, 100) + "..." : bug.Description)
+                            </p>
+                        }
+                        
+                        <div class="small text-muted mb-2">
+                            <i class="bi bi-globe"></i> @bug.UrlMenu
+                        </div>
+                        
+                        <div class="small text-muted mb-2">
+                            <i class="bi bi-tag"></i> @GetBugTypeDisplayName(bug.BugType)
+                        </div>
+                        
+                        <div class="small text-muted mb-2">
+                            <i class="bi bi-person"></i> Submitted by: @bug.SubmittedByName
+                        </div>
+                        
+                        @if (!string.IsNullOrEmpty(bug.PrimaryAssigneeName))
+                        {
+                            <div class="small text-muted mb-2">
+                                <i class="bi bi-person-check"></i> Assigned to: @bug.PrimaryAssigneeName
+                                @if (!string.IsNullOrEmpty(bug.SecondaryAssigneeName))
+                                {
+                                    <text>, @bug.SecondaryAssigneeName</text>
+                                }
+                            </div>
+                        }
+                        
+                        @if (bug.ReopenCount > 0)
+                        {
+                            <div class="small text-warning mb-2">
+                                <i class="bi bi-arrow-clockwise"></i> Reopened @bug.ReopenCount time(s)
+                            </div>
+                        }
+                        
+                        <div class="small text-muted">
+                            <i class="bi bi-calendar"></i> @bug.SubmittedAt.ToString("MMM dd, yyyy")
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between">
+                            <a href="/bugs/@bug.Id" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                            <a href="/bugs/@bug.Id/edit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    
+    <!-- Pagination -->
+    <nav aria-label="Bug list pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                <button class="page-link" @onclick="() => ChangePage(currentPage - 1)" disabled="@(currentPage <= 1)">
+                    Previous
+                </button>
+            </li>
+            
+            @for (int i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+            {
+                <li class="page-item @(i == currentPage ? "active" : "")">
+                    <button class="page-link" @onclick="() => ChangePage(i)">@i</button>
+                </li>
+            }
+            
+            <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                <button class="page-link" @onclick="() => ChangePage(currentPage + 1)" disabled="@(currentPage >= totalPages)">
+                    Next
+                </button>
+            </li>
+        </ul>
+    </nav>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3">
+        <i class="bi bi-exclamation-triangle"></i> @errorMessage
+    </div>
+}
+
+@code {
+    private List<BugResponse>? bugs;
+    private bool loading = true;
+    private string errorMessage = string.Empty;
+    
+    // Filter parameters
+    private string selectedStatus = string.Empty;
+    private string selectedPriority = string.Empty;
+    private string selectedBugType = string.Empty;
+    private string searchTerm = string.Empty;
+    
+    // Pagination
+    private int currentPage = 1;
+    private int pageSize = 12;
+    private int totalPages = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBugs();
+    }
+    
+    private async Task LoadBugs()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = string.Empty;
+            
+            var query = new List<string>();
+            
+            if (!string.IsNullOrEmpty(selectedStatus))
+                query.Add($"status={selectedStatus}");
+            if (!string.IsNullOrEmpty(selectedPriority))
+                query.Add($"priority={selectedPriority}");
+            if (!string.IsNullOrEmpty(selectedBugType))
+                query.Add($"bugType={selectedBugType}");
+            if (!string.IsNullOrEmpty(searchTerm))
+                query.Add($"searchTerm={Uri.EscapeDataString(searchTerm)}");
+                
+            query.Add($"page={currentPage}");
+            query.Add($"pageSize={pageSize}");
+            
+            var queryString = string.Join("&", query);
+            var url = $"http://localhost:5146/api/bugs?{queryString}";
+            
+            var response = await Http.GetAsync(url);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                bugs = JsonSerializer.Deserialize<List<BugResponse>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                
+                // Calculate total pages (for now, assume 20 items per page max)
+                totalPages = Math.Max(1, (bugs?.Count ?? 0) / pageSize + 1);
+            }
+            else
+            {
+                errorMessage = $"Failed to load bugs: {response.StatusCode}";
+                bugs = new List<BugResponse>();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading bugs: {ex.Message}";
+            bugs = new List<BugResponse>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+    
+    private async Task ClearFilters()
+    {
+        selectedStatus = string.Empty;
+        selectedPriority = string.Empty;
+        selectedBugType = string.Empty;
+        searchTerm = string.Empty;
+        currentPage = 1;
+        await LoadBugs();
+    }
+    
+    private async Task ChangePage(int page)
+    {
+        if (page >= 1 && page <= totalPages)
+        {
+            currentPage = page;
+            await LoadBugs();
+        }
+    }
+    
+    // Helper methods for display
+    private string GetStatusDisplayName(int status) => status switch
+    {
+        0 => "Pending",
+        1 => "Dev Running",
+        2 => "Need to Test",
+        3 => "Test Running",
+        4 => "Solved",
+        5 => "Postpone",
+        6 => "Invalid",
+        7 => "Canceled",
+        _ => "Unknown"
+    };
+    
+    private string GetStatusBadgeClass(int status) => status switch
+    {
+        0 => "bg-warning text-dark",
+        1 => "bg-info",
+        2 => "bg-primary",
+        3 => "bg-secondary",
+        4 => "bg-success",
+        5 => "bg-dark",
+        6 => "bg-danger",
+        7 => "bg-secondary",
+        _ => "bg-light text-dark"
+    };
+    
+    private string GetPriorityDisplayName(int priority) => priority switch
+    {
+        0 => "Regular",
+        1 => "Top",
+        2 => "Medium", 
+        3 => "Low",
+        _ => "Unknown"
+    };
+    
+    private string GetPriorityBadgeClass(int priority) => priority switch
+    {
+        0 => "bg-light text-dark",
+        1 => "bg-danger",
+        2 => "bg-warning text-dark",
+        3 => "bg-info",
+        _ => "bg-secondary"
+    };
+    
+    private string GetBugTypeDisplayName(int bugType) => bugType switch
+    {
+        0 => "UI/UX (PC)",
+        1 => "UI/UX (Mobile)",
+        2 => "UI/UX (PC & Mobile)",
+        3 => "Functional",
+        4 => "Functional Enhancement",
+        5 => "Business Logic",
+        6 => "Load Test",
+        _ => "Unknown"
+    };
+    
+    private string GetCardBorderClass(int priority) => priority switch
+    {
+        1 => "border-danger",
+        2 => "border-warning",
+        3 => "border-info",
+        _ => ""
+    };
+
+    // Models (should be moved to shared project in real implementation)
+    public class BugResponse
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string UrlMenu { get; set; } = string.Empty;
+        public int BugType { get; set; }
+        public int Priority { get; set; }
+        public int Status { get; set; }
+        public string SubmittedById { get; set; } = string.Empty;
+        public string SubmittedByName { get; set; } = string.Empty;
+        public DateTime SubmittedAt { get; set; }
+        public DateTime? QaLastCheckTime { get; set; }
+        public string QaRemarks { get; set; } = string.Empty;
+        public string ProgrammerRemarks { get; set; } = string.Empty;
+        public int ReopenCount { get; set; }
+        public string? PrimaryAssigneeName { get; set; }
+        public string? SecondaryAssigneeName { get; set; }
+    }
+}

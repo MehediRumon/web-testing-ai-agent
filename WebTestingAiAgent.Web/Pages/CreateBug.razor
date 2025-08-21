@@ -1,0 +1,379 @@
+@page "/bugs/create"
+@using System.Text.Json
+@using System.Text
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Report Bug - Web Testing AI Agent</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Report New Bug</h1>
+    <a href="/bugs" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Bug List
+    </a>
+</div>
+
+@if (isSubmitting)
+{
+    <div class="alert alert-info">
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Submitting...</span>
+            </div>
+            Submitting bug report...
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle"></i> @errorMessage
+    </div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Bug Details</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="bugRequest" OnValidSubmit="SubmitBug">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Title <span class="text-danger">*</span></label>
+                        <InputText class="form-control" @bind-Value="bugRequest.Title" placeholder="Brief description of the bug" />
+                        <ValidationMessage For="@(() => bugRequest.Title)" class="text-danger" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <InputTextArea class="form-control" @bind-Value="bugRequest.Description" 
+                                     placeholder="Detailed description of the bug, steps to reproduce, expected vs actual behavior" 
+                                     rows="5" />
+                        <ValidationMessage For="@(() => bugRequest.Description)" class="text-danger" />
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">URL/Menu <span class="text-danger">*</span></label>
+                                <InputText class="form-control" @bind-Value="bugRequest.UrlMenu" 
+                                         placeholder="e.g., /login, Home > Settings, etc." />
+                                <ValidationMessage For="@(() => bugRequest.UrlMenu)" class="text-danger" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Bug Type <span class="text-danger">*</span></label>
+                                <InputSelect class="form-select" @bind-Value="bugRequest.BugType">
+                                    <option value="0">UI/UX (PC)</option>
+                                    <option value="1">UI/UX (Mobile)</option>
+                                    <option value="2">UI/UX (PC & Mobile)</option>
+                                    <option value="3">Functional</option>
+                                    <option value="4">Functional Enhancement</option>
+                                    <option value="5">Business Logic</option>
+                                    <option value="6">Load Test</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => bugRequest.BugType)" class="text-danger" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Priority <span class="text-danger">*</span></label>
+                                <InputSelect class="form-select" @bind-Value="bugRequest.Priority">
+                                    <option value="0">Regular</option>
+                                    <option value="1">Top</option>
+                                    <option value="2">Medium</option>
+                                    <option value="3">Low</option>
+                                </InputSelect>
+                                <ValidationMessage For="@(() => bugRequest.Priority)" class="text-danger" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Primary Assignee</label>
+                                <select class="form-select" @bind="bugRequest.PrimaryAssigneeId">
+                                    <option value="">Select developer...</option>
+                                    @if (developers != null)
+                                    {
+                                        @foreach (var dev in developers)
+                                        {
+                                            <option value="@dev.Id">@dev.FullName</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Secondary Assignee (Optional)</label>
+                        <select class="form-select" @bind="bugRequest.SecondaryAssigneeId">
+                            <option value="">Select developer...</option>
+                            @if (developers != null)
+                            {
+                                @foreach (var dev in developers)
+                                {
+                                    <option value="@dev.Id">@dev.FullName</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Screenshots/Images</label>
+                        <InputFile OnChange="HandleImageUpload" multiple class="form-control" accept="image/*" />
+                        <div class="form-text">Upload screenshots, mockups, or other relevant images (max 10MB each)</div>
+                        
+                        @if (selectedImages.Any())
+                        {
+                            <div class="mt-3">
+                                <div class="row">
+                                    @foreach (var image in selectedImages)
+                                    {
+                                        <div class="col-md-3 mb-2">
+                                            <div class="card">
+                                                <div class="card-body p-2 text-center">
+                                                    <i class="bi bi-image display-6 text-muted"></i>
+                                                    <div class="small text-muted">@image.Name</div>
+                                                    <div class="small text-muted">@FormatFileSize(image.Size)</div>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger mt-1" 
+                                                            @onclick="() => RemoveImage(image)">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-outline-secondary me-2" @onclick="Cancel">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            <i class="bi bi-bug"></i> Submit Bug Report
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Guidelines</h5>
+            </div>
+            <div class="card-body">
+                <h6>Writing a Good Bug Report</h6>
+                <ul class="small">
+                    <li><strong>Title:</strong> Be specific and concise</li>
+                    <li><strong>Description:</strong> Include steps to reproduce</li>
+                    <li><strong>Expected vs Actual:</strong> What should happen vs what happens</li>
+                    <li><strong>Environment:</strong> Browser, device, OS if relevant</li>
+                </ul>
+                
+                <h6 class="mt-3">Priority Guidelines</h6>
+                <ul class="small">
+                    <li><strong>Top:</strong> Critical system failures</li>
+                    <li><strong>Regular:</strong> Standard bugs affecting functionality</li>
+                    <li><strong>Medium:</strong> Minor issues with workarounds</li>
+                    <li><strong>Low:</strong> Cosmetic or enhancement requests</li>
+                </ul>
+                
+                <h6 class="mt-3">Bug Types</h6>
+                <ul class="small">
+                    <li><strong>UI/UX:</strong> Visual or interaction issues</li>
+                    <li><strong>Functional:</strong> Feature not working as expected</li>
+                    <li><strong>Business Logic:</strong> Calculation or workflow errors</li>
+                    <li><strong>Load Test:</strong> Performance under stress</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private CreateBugRequest bugRequest = new();
+    private List<UserResponse>? developers;
+    private List<IBrowserFile> selectedImages = new();
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDevelopers();
+    }
+    
+    private async Task LoadDevelopers()
+    {
+        try
+        {
+            var response = await Http.GetAsync("http://localhost:5146/api/users/developers");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                developers = JsonSerializer.Deserialize<List<UserResponse>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading developers: {ex.Message}");
+        }
+    }
+    
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        selectedImages.Clear();
+        
+        foreach (var file in e.GetMultipleFiles(5)) // Max 5 files
+        {
+            if (file.Size > 10 * 1024 * 1024) // 10MB limit
+            {
+                errorMessage = $"File {file.Name} is too large. Maximum size is 10MB.";
+                continue;
+            }
+            
+            if (!file.ContentType.StartsWith("image/"))
+            {
+                errorMessage = $"File {file.Name} is not an image.";
+                continue;
+            }
+            
+            selectedImages.Add(file);
+        }
+        
+        StateHasChanged();
+    }
+    
+    private void RemoveImage(IBrowserFile image)
+    {
+        selectedImages.Remove(image);
+        StateHasChanged();
+    }
+    
+    private async Task SubmitBug()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = string.Empty;
+            
+            // Create JSON payload
+            var json = JsonSerializer.Serialize(bugRequest, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await Http.PostAsync("http://localhost:5146/api/bugs", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseJson = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializer.Deserialize<Dictionary<string, object>>(responseJson);
+                var bugId = result?["bugId"]?.ToString();
+                
+                // TODO: Upload images if any
+                if (selectedImages.Any() && !string.IsNullOrEmpty(bugId))
+                {
+                    await UploadImages(bugId);
+                }
+                
+                Navigation.NavigateTo("/bugs");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to submit bug: {error}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error submitting bug: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+    
+    private async Task UploadImages(string bugId)
+    {
+        try
+        {
+            var formData = new MultipartFormDataContent();
+            
+            foreach (var image in selectedImages)
+            {
+                var imageContent = new StreamContent(image.OpenReadStream(10 * 1024 * 1024)); // 10MB limit
+                imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(image.ContentType);
+                formData.Add(imageContent, "images", image.Name);
+            }
+            
+            var response = await Http.PostAsync($"http://localhost:5146/api/bugs/{bugId}/images", formData);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Failed to upload images: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error uploading images: {ex.Message}");
+        }
+    }
+    
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/bugs");
+    }
+    
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024:F1} KB";
+        return $"{bytes / (1024 * 1024):F1} MB";
+    }
+
+    // Models (should be moved to shared project in real implementation)
+    public class CreateBugRequest
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string UrlMenu { get; set; } = string.Empty;
+        public int BugType { get; set; }
+        public int Priority { get; set; }
+        public string PrimaryAssigneeId { get; set; } = string.Empty;
+        public string? SecondaryAssigneeId { get; set; }
+    }
+    
+    public class UserResponse
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public int Role { get; set; }
+        public string? LeadName { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsActive { get; set; }
+    }
+}
