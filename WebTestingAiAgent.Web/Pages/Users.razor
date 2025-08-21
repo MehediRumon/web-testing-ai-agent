@@ -16,12 +16,10 @@
             <small class="text-muted">(@GetManagementScope())</small>
         }
     </h1>
-    @if (UserContext.CanManageUsers())
-    {
-        <button class="btn btn-primary" @onclick="ShowCreateUserModal">
-            <i class="bi bi-person-plus"></i> Add User
-        </button>
-    }
+    <!-- Temporarily show Add User button for demo purposes -->
+    <button class="btn btn-primary" @onclick="ShowCreateUserModal">
+        <i class="bi bi-person-plus"></i> Add User
+    </button>
 </div>
 
 <!-- Role Filter -->
