@@ -80,33 +80,18 @@
                     <hr class="my-4">
 
                     <div class="text-center">
-                        <p class="text-muted mb-3">Demo Users for Testing:</p>
+                        <p class="text-muted mb-3">Super Admin Login Only:</p>
                         <div class="row g-2">
-                            <div class="col-6">
+                            <div class="col-12">
                                 <button class="btn btn-outline-secondary btn-sm w-100" 
-                                        @onclick="@(() => QuickLogin("admin", "admin123"))">
-                                    <i class="bi bi-shield-check me-1"></i>Admin
-                                </button>
-                            </div>
-                            <div class="col-6">
-                                <button class="btn btn-outline-secondary btn-sm w-100" 
-                                        @onclick="@(() => QuickLogin("tester", "test123"))">
-                                    <i class="bi bi-bug me-1"></i>Tester
-                                </button>
-                            </div>
-                            <div class="col-6">
-                                <button class="btn btn-outline-secondary btn-sm w-100" 
-                                        @onclick="@(() => QuickLogin("developer", "dev123"))">
-                                    <i class="bi bi-code-slash me-1"></i>Developer
-                                </button>
-                            </div>
-                            <div class="col-6">
-                                <button class="btn btn-outline-secondary btn-sm w-100" 
-                                        @onclick="@(() => QuickLogin("lead", "lead123"))">
-                                    <i class="bi bi-person-badge me-1"></i>Lead
+                                        @onclick="@(() => QuickLogin("superadmin", "admin123"))">
+                                    <i class="bi bi-shield-check me-1"></i>Super Admin
                                 </button>
                             </div>
                         </div>
+                        <small class="text-muted mt-2 d-block">
+                            Other users will be created by Super Admin after login
+                        </small>
                     </div>
                 </div>
                 <div class="card-footer text-center text-muted">
@@ -192,9 +177,10 @@
 
             if (isValidUser)
             {
-                // Store login status (in real implementation, this would be handled by proper authentication)
+                // Store login status and set user context
                 await JSRuntime.InvokeVoidAsync("localStorage.setItem", "isLoggedIn", "true");
                 await JSRuntime.InvokeVoidAsync("localStorage.setItem", "username", loginRequest.Username);
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "userId", "super-admin-1");
 
                 successMessage = "Login successful! Redirecting...";
                 await Task.Delay(1000);
@@ -224,18 +210,8 @@
 
     private bool ValidateUser(string username, string password)
     {
-        // Demo user validation (replace with actual authentication logic)
-        var demoUsers = new Dictionary<string, string>
-        {
-            {"admin", "admin123"},
-            {"tester", "test123"},
-            {"developer", "dev123"},
-            {"lead", "lead123"},
-            {"superadmin", "super123"},
-            {"qa", "qa123"}
-        };
-
-        return demoUsers.ContainsKey(username.ToLower()) && demoUsers[username.ToLower()] == password;
+        // Only allow super admin login
+        return username.ToLower() == "superadmin" && password == "admin123";
     }
 
     public class LoginRequest

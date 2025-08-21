@@ -1,6 +1,7 @@
 ﻿@using WebTestingAiAgent.Web.Services
 @using WebTestingAiAgent.Core.Models
 @inject IUserContextService UserContext
+@inject IJSRuntime JSRuntime
 
 <div class="top-row ps-3 navbar navbar-dark bg-gradient">
     <div class="container-fluid">
@@ -17,22 +18,9 @@
                         <span class="badge bg-primary ms-2">@GetRoleDisplayName(currentUser.Role)</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><h6 class="dropdown-header">Switch Role (Demo)</h6></li>
-                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("super-admin-1"))">
-                            <i class="bi bi-shield-fill-check text-danger me-2"></i>Super Admin
-                        </button></li>
-                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("dev-lead-1"))">
-                            <i class="bi bi-code-slash text-primary me-2"></i>Developer Lead
-                        </button></li>
-                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("qa-lead-1"))">
-                            <i class="bi bi-clipboard-check text-success me-2"></i>QA Lead
-                        </button></li>
-                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("tester-1"))">
-                            <i class="bi bi-bug-fill text-warning me-2"></i>Tester
-                        </button></li>
-                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("developer-1"))">
-                            <i class="bi bi-laptop text-info me-2"></i>Developer
-                        </button></li>
+                        <li><h6 class="dropdown-header">
+                            <i class="bi bi-person-circle me-1"></i>@currentUser.Username
+                        </h6></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item" href="/profile">
                             <i class="bi bi-person-gear me-2"></i>Profile Settings
@@ -201,19 +189,32 @@
 
     protected override async Task OnInitializedAsync()
     {
-        currentUser = await UserContext.GetCurrentUserAsync();
+        await LoadCurrentUser();
+    }
+
+    private async Task LoadCurrentUser()
+    {
+        try
+        {
+            // Check if user is logged in from localStorage
+            var isLoggedIn = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "isLoggedIn");
+            var userId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "userId");
+            
+            if (isLoggedIn == "true" && !string.IsNullOrEmpty(userId))
+            {
+                await UserContext.SetCurrentUserAsync(userId);
+                currentUser = await UserContext.GetCurrentUserAsync();
+            }
+        }
+        catch
+        {
+            // If there's an error, user remains null (not logged in)
+        }
     }
 
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
-    }
-    
-    private async Task SwitchUser(string userId)
-    {
-        await UserContext.SetCurrentUserAsync(userId);
-        currentUser = await UserContext.GetCurrentUserAsync();
-        StateHasChanged();
     }
 
     private string GetRoleDisplayName(UserRole role)

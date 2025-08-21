@@ -64,11 +64,16 @@ public class User
     [Required]
     public UserRole Role { get; set; }
     
+    [Required]
+    public string Password { get; set; } = string.Empty; // Hashed password
+    
     public string? LeadId { get; set; } // For Developers/Testers under a Lead
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     public bool IsActive { get; set; } = true;
+    
+    public bool MustChangePassword { get; set; } = false; // For first-time login
 }
 
 public class Bug
@@ -245,6 +250,10 @@ public class CreateUserRequest
     
     [Required]
     public UserRole Role { get; set; }
+    
+    [Required]
+    [MinLength(6, ErrorMessage = "Password must be at least 6 characters long")]
+    public string Password { get; set; } = string.Empty;
     
     public string? LeadId { get; set; }
 }

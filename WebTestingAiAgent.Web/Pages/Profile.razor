@@ -1,0 +1,267 @@
+@page "/profile"
+@using WebTestingAiAgent.Web.Services
+@using WebTestingAiAgent.Core.Models
+@inject IUserContextService UserContext
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Profile Settings - Bug Tracking System</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-gradient text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-person-gear me-2"></i>Profile Settings
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    @if (currentUser != null)
+                    {
+                        <!-- User Information Section -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h5 class="border-bottom pb-2 mb-3">
+                                    <i class="bi bi-person-circle me-2 text-primary"></i>User Information
+                                </h5>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label text-muted">Full Name</label>
+                                        <p class="h6">@currentUser.FullName</p>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label text-muted">Username</label>
+                                        <p class="h6">@currentUser.Username</p>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label text-muted">Email</label>
+                                        <p class="h6">@currentUser.Email</p>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label text-muted">Role</label>
+                                        <span class="badge @GetRoleBadgeClass(currentUser.Role) fs-6">
+                                            @GetRoleDisplayName(currentUser.Role)
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Change Password Section -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <h5 class="border-bottom pb-2 mb-3">
+                                    <i class="bi bi-shield-lock me-2 text-warning"></i>Change Password
+                                </h5>
+                                
+                                @if (!string.IsNullOrEmpty(passwordMessage))
+                                {
+                                    <div class="alert @(passwordSuccess ? "alert-success" : "alert-danger")" role="alert">
+                                        <i class="bi @(passwordSuccess ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
+                                        @passwordMessage
+                                    </div>
+                                }
+
+                                <EditForm Model="passwordForm" OnValidSubmit="ChangePassword">
+                                    <DataAnnotationsValidator />
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="bi bi-lock me-1"></i>Current Password <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                            <InputText type="password" class="form-control" @bind-Value="passwordForm.CurrentPassword" 
+                                                     placeholder="Enter current password" />
+                                        </div>
+                                        <ValidationMessage For="@(() => passwordForm.CurrentPassword)" class="text-danger" />
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="bi bi-key me-1"></i>New Password <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-key"></i></span>
+                                            <InputText type="password" class="form-control" @bind-Value="passwordForm.NewPassword" 
+                                                     placeholder="Enter new password" />
+                                        </div>
+                                        <ValidationMessage For="@(() => passwordForm.NewPassword)" class="text-danger" />
+                                    </div>
+                                    
+                                    <div class="mb-4">
+                                        <label class="form-label">
+                                            <i class="bi bi-key-fill me-1"></i>Confirm New Password <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
+                                            <InputText type="password" class="form-control" @bind-Value="passwordForm.ConfirmPassword" 
+                                                     placeholder="Confirm new password" />
+                                        </div>
+                                        <ValidationMessage For="@(() => passwordForm.ConfirmPassword)" class="text-danger" />
+                                    </div>
+                                    
+                                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                        <button type="submit" class="btn btn-primary" disabled="@isChangingPassword">
+                                            @if (isChangingPassword)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            }
+                                            <i class="bi bi-check-circle me-2"></i>Change Password
+                                        </button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading profile...</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-gradient {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .card {
+        border-radius: 1rem;
+    }
+    
+    .card-header {
+        border-radius: 1rem 1rem 0 0 !important;
+    }
+    
+    .input-group-text {
+        border-radius: 0.375rem 0 0 0.375rem;
+    }
+    
+    .form-control {
+        border-radius: 0 0.375rem 0.375rem 0;
+    }
+    
+    .btn {
+        border-radius: 0.5rem;
+    }
+</style>
+
+@code {
+    private User? currentUser;
+    private PasswordChangeForm passwordForm = new();
+    private bool isChangingPassword = false;
+    private string passwordMessage = string.Empty;
+    private bool passwordSuccess = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await UserContext.GetCurrentUserAsync();
+    }
+
+    private async Task ChangePassword()
+    {
+        try
+        {
+            isChangingPassword = true;
+            passwordMessage = string.Empty;
+            
+            // Validate passwords match
+            if (passwordForm.NewPassword != passwordForm.ConfirmPassword)
+            {
+                passwordMessage = "New password and confirmation password do not match.";
+                passwordSuccess = false;
+                return;
+            }
+            
+            // Validate password strength (basic validation)
+            if (passwordForm.NewPassword.Length < 6)
+            {
+                passwordMessage = "New password must be at least 6 characters long.";
+                passwordSuccess = false;
+                return;
+            }
+            
+            // Simulate password change (in real implementation, this would call an API)
+            await Task.Delay(1000);
+            
+            // For demo purposes, accept any current password except empty
+            if (string.IsNullOrWhiteSpace(passwordForm.CurrentPassword))
+            {
+                passwordMessage = "Please enter your current password.";
+                passwordSuccess = false;
+                return;
+            }
+            
+            // Simulate success
+            passwordMessage = "Password changed successfully!";
+            passwordSuccess = true;
+            
+            // Clear the form
+            passwordForm = new PasswordChangeForm();
+            
+            // Auto-hide success message after 3 seconds
+            await Task.Delay(3000);
+            passwordMessage = string.Empty;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            passwordMessage = $"Error changing password: {ex.Message}";
+            passwordSuccess = false;
+        }
+        finally
+        {
+            isChangingPassword = false;
+        }
+    }
+
+    private string GetRoleDisplayName(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "Super Administrator",
+            UserRole.DeveloperLead => "Development Lead",
+            UserRole.QALead => "QA Lead",
+            UserRole.Tester => "Tester",
+            UserRole.Developer => "Developer",
+            UserRole.Admin => "Administrator",
+            _ => role.ToString()
+        };
+    }
+    
+    private string GetRoleBadgeClass(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "bg-danger",
+            UserRole.DeveloperLead => "bg-primary",
+            UserRole.QALead => "bg-info",
+            UserRole.Tester => "bg-warning text-dark",
+            UserRole.Developer => "bg-success",
+            UserRole.Admin => "bg-secondary",
+            _ => "bg-light text-dark"
+        };
+    }
+
+    public class PasswordChangeForm
+    {
+        [Required(ErrorMessage = "Current password is required")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "New password is required")]
+        [MinLength(6, ErrorMessage = "Password must be at least 6 characters long")]
+        public string NewPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please confirm your new password")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}
