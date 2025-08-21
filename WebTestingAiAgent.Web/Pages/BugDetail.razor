@@ -1,7 +1,10 @@
 @page "/bugs/{bugId}"
 @using System.Text.Json
+@using WebTestingAiAgent.Web.Services
+@using WebTestingAiAgent.Core.Models
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
+@inject IUserContextService UserContext
 
 <PageTitle>Bug Details - @bug?.Title</PageTitle>
 
@@ -57,9 +60,12 @@
                             @bug.Title
                         </h4>
                         <div class="btn-group">
-                            <a href="/bugs/@bug.Id/edit" class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-pencil me-1"></i>Edit
-                            </a>
+                            @if (UserContext.CanEditBugs())
+                            {
+                                <a href="/bugs/@bug.Id/edit" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-pencil me-1"></i>Edit
+                                </a>
+                            }
                             <button class="btn btn-outline-secondary btn-sm" @onclick="RefreshBug">
                                 <i class="bi bi-arrow-clockwise me-1"></i>Refresh
                             </button>
@@ -175,7 +181,7 @@
                     <div class="card">
                         <div class="card-header">
                             <h5 class="mb-0">
-                                <i class="bi bi-images me-2"></i>
+                                <i class="bi bi-images me-2 text-primary"></i>
                                 Screenshots & Images (@bug.Images.Count)
                             </h5>
                         </div>
@@ -184,10 +190,21 @@
                                 @foreach (var image in bug.Images)
                                 {
                                     <div class="col-md-6 col-lg-4">
-                                        <div class="card">
-                                            <img src="@image.Url" class="card-img-top" alt="@image.Label" style="height: 200px; object-fit: cover;" />
+                                        <div class="card shadow-sm h-100">
+                                            <div class="position-relative">
+                                                <img src="@image.Url" 
+                                                     class="card-img-top img-thumbnail" 
+                                                     alt="@image.Label" 
+                                                     style="height: 200px; object-fit: cover; cursor: pointer;" 
+                                                     @onclick="@(() => ShowImageModal(image.Url, image.Label))" />
+                                                <div class="position-absolute top-0 end-0 m-2">
+                                                    <span class="badge bg-primary">
+                                                        <i class="bi bi-zoom-in"></i>
+                                                    </span>
+                                                </div>
+                                            </div>
                                             <div class="card-body p-2">
-                                                <small class="text-muted">@image.Label</small>
+                                                <small class="text-muted fw-medium">@image.Label</small>
                                             </div>
                                         </div>
                                     </div>
@@ -225,18 +242,60 @@
                     </div>
                     <div class="card-body">
                         <div class="d-grid gap-2">
-                            <a href="/bugs/@bug.Id/edit" class="btn btn-outline-primary">
-                                <i class="bi bi-pencil me-2"></i>Edit Bug
-                            </a>
-                            <button class="btn btn-outline-success" @onclick="(() => UpdateStatus((int)DevStatus.Solved))">
-                                <i class="bi bi-check-circle me-2"></i>Mark as Solved
-                            </button>
-                            <button class="btn btn-outline-warning" @onclick="(() => UpdateStatus((int)DevStatus.DevRunning))">
-                                <i class="bi bi-play-circle me-2"></i>Start Development
-                            </button>
-                            <button class="btn btn-outline-info" @onclick="(() => UpdateStatus((int)DevStatus.NeedToTest))">
-                                <i class="bi bi-bug me-2"></i>Ready for Testing
-                            </button>
+                            @if (UserContext.CanEditBugs())
+                            {
+                                <a href="/bugs/@bug.Id/edit" class="btn btn-outline-primary">
+                                    <i class="bi bi-pencil me-2"></i>Edit Bug
+                                </a>
+                            }
+                            
+                            @if (UserContext.CanUpdateBugStatus())
+                            {
+                                @if (currentUser?.Role == UserRole.Developer || currentUser?.Role == UserRole.DeveloperLead)
+                                {
+                                    <button class="btn btn-outline-warning" @onclick="(() => UpdateStatus((int)DevStatus.DevRunning))">
+                                        <i class="bi bi-play-circle me-2"></i>Start Development
+                                    </button>
+                                    <button class="btn btn-outline-info" @onclick="(() => UpdateStatus((int)DevStatus.NeedToTest))">
+                                        <i class="bi bi-bug me-2"></i>Ready for Testing
+                                    </button>
+                                    <button class="btn btn-outline-success" @onclick="(() => UpdateStatus((int)DevStatus.Solved))">
+                                        <i class="bi bi-check-circle me-2"></i>Mark as Solved
+                                    </button>
+                                }
+                                
+                                @if (currentUser?.Role == UserRole.Tester || currentUser?.Role == UserRole.QALead)
+                                {
+                                    <button class="btn btn-outline-info" @onclick="(() => UpdateStatus((int)DevStatus.TestRunning))">
+                                        <i class="bi bi-hourglass-split me-2"></i>Start Testing
+                                    </button>
+                                    <button class="btn btn-outline-success" @onclick="(() => UpdateStatus((int)DevStatus.Solved))">
+                                        <i class="bi bi-check-circle me-2"></i>Mark as Solved
+                                    </button>
+                                    <button class="btn btn-outline-warning" @onclick="(() => UpdateStatus((int)DevStatus.Pending))">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>Reopen Bug
+                                    </button>
+                                }
+                                
+                                @if (currentUser?.Role == UserRole.SuperAdmin)
+                                {
+                                    <button class="btn btn-outline-success" @onclick="(() => UpdateStatus((int)DevStatus.Solved))">
+                                        <i class="bi bi-check-circle me-2"></i>Mark as Solved
+                                    </button>
+                                    <button class="btn btn-outline-warning" @onclick="(() => UpdateStatus((int)DevStatus.DevRunning))">
+                                        <i class="bi bi-play-circle me-2"></i>Start Development
+                                    </button>
+                                    <button class="btn btn-outline-info" @onclick="(() => UpdateStatus((int)DevStatus.NeedToTest))">
+                                        <i class="bi bi-bug me-2"></i>Ready for Testing
+                                    </button>
+                                    <button class="btn btn-outline-secondary" @onclick="(() => UpdateStatus((int)DevStatus.Postpone))">
+                                        <i class="bi bi-pause-circle me-2"></i>Postpone
+                                    </button>
+                                    <button class="btn btn-outline-danger" @onclick="(() => UpdateStatus((int)DevStatus.Canceled))">
+                                        <i class="bi bi-x-circle me-2"></i>Cancel
+                                    </button>
+                                }
+                            }
                         </div>
                     </div>
                 </div>
@@ -289,6 +348,27 @@
     }
 </div>
 
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">@selectedImageLabel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="@selectedImageUrl" class="img-fluid" alt="@selectedImageLabel" style="max-height: 70vh;" />
+            </div>
+            <div class="modal-footer">
+                <a href="@selectedImageUrl" target="_blank" class="btn btn-primary">
+                    <i class="bi bi-download me-2"></i>Download
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @code {
     [Parameter] public string BugId { get; set; } = string.Empty;
 
@@ -296,9 +376,13 @@
     private List<BugStatusHistory> statusHistory = new();
     private bool loading = true;
     private string errorMessage = string.Empty;
+    private User? currentUser;
+    private string selectedImageUrl = string.Empty;
+    private string selectedImageLabel = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
+        currentUser = await UserContext.GetCurrentUserAsync();
         await LoadBugDetails();
     }
 
@@ -361,6 +445,13 @@
     private async Task RefreshBug()
     {
         await LoadBugDetails();
+    }
+
+    private async Task ShowImageModal(string imageUrl, string imageLabel)
+    {
+        selectedImageUrl = imageUrl;
+        selectedImageLabel = imageLabel;
+        await JSRuntime.InvokeVoidAsync("eval", "$('#imageModal').modal('show')");
     }
 
     private async Task UpdateStatus(int newStatus)

@@ -1,11 +1,54 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using WebTestingAiAgent.Web.Services
+@using WebTestingAiAgent.Core.Models
+@inject IUserContextService UserContext
+
+<div class="top-row ps-3 navbar navbar-dark bg-gradient">
     <div class="container-fluid">
         <a class="navbar-brand" href="">
-            <i class="bi bi-bug-fill me-2"></i>Bug Tracking System
+            <i class="bi bi-shield-shaded me-2 text-warning"></i>
+            <span class="fw-bold">Bug Tracking System</span>
         </a>
         <div class="d-flex align-items-center">
-            <span class="text-light me-3">Welcome, Guest</span>
-            <a href="/login" class="btn btn-outline-light btn-sm me-2">Login</a>
+            @if (currentUser != null)
+            {
+                <div class="dropdown me-3">
+                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-1"></i>@currentUser.FullName
+                        <span class="badge bg-primary ms-2">@GetRoleDisplayName(currentUser.Role)</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><h6 class="dropdown-header">Switch Role (Demo)</h6></li>
+                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("super-admin-1"))">
+                            <i class="bi bi-shield-fill-check text-danger me-2"></i>Super Admin
+                        </button></li>
+                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("dev-lead-1"))">
+                            <i class="bi bi-code-slash text-primary me-2"></i>Developer Lead
+                        </button></li>
+                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("qa-lead-1"))">
+                            <i class="bi bi-clipboard-check text-success me-2"></i>QA Lead
+                        </button></li>
+                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("tester-1"))">
+                            <i class="bi bi-bug-fill text-warning me-2"></i>Tester
+                        </button></li>
+                        <li><button class="dropdown-item" @onclick="@(() => SwitchUser("developer-1"))">
+                            <i class="bi bi-laptop text-info me-2"></i>Developer
+                        </button></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="/profile">
+                            <i class="bi bi-person-gear me-2"></i>Profile Settings
+                        </a></li>
+                        <li><a class="dropdown-item" href="/logout">
+                            <i class="bi bi-box-arrow-right me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            }
+            else
+            {
+                <a href="/login" class="btn btn-outline-light btn-sm me-2">
+                    <i class="bi bi-box-arrow-in-right me-1"></i>Login
+                </a>
+            }
             <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -15,59 +58,186 @@
 
 <div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
     <nav class="flex-column">
+        <!-- Dashboard - Available to all -->
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Dashboard
+                <span class="bi bi-speedometer2 nav-icon text-info" aria-hidden="true"></span> 
+                <span class="nav-text">Dashboard</span>
             </NavLink>
         </div>
         
         <!-- Bug Management Section -->
-        <hr class="text-white-50" />
-        <div class="nav-item px-3">
-            <small class="text-white-50 fw-bold">BUG MANAGEMENT</small>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="bugs/create">
-                <span class="bi bi-plus-circle-fill-nav-menu text-danger" aria-hidden="true"></span> Report Bug
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="bugs">
-                <span class="bi bi-list-task-nav-menu text-primary" aria-hidden="true"></span> View All Bugs
-            </NavLink>
-        </div>
+        @if (UserContext.CanViewBugs())
+        {
+            <hr class="nav-divider" />
+            <div class="nav-item px-3">
+                <small class="nav-section-header">
+                    <i class="bi bi-bug-fill me-1"></i>BUG MANAGEMENT
+                </small>
+            </div>
+            
+            @if (UserContext.CanCreateBugs())
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="bugs/create">
+                        <span class="bi bi-plus-circle-fill nav-icon text-success" aria-hidden="true"></span> 
+                        <span class="nav-text">Report Bug</span>
+                    </NavLink>
+                </div>
+            }
+            
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="bugs">
+                    <span class="bi bi-list-task nav-icon text-primary" aria-hidden="true"></span> 
+                    <span class="nav-text">View All Bugs</span>
+                </NavLink>
+            </div>
+            
+            @if (currentUser?.Role == UserRole.Developer)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="bugs/assigned">
+                        <span class="bi bi-person-check nav-icon text-warning" aria-hidden="true"></span> 
+                        <span class="nav-text">My Assigned Bugs</span>
+                    </NavLink>
+                </div>
+            }
+            
+            @if (currentUser?.Role == UserRole.Tester)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="bugs/submitted">
+                        <span class="bi bi-clipboard-data nav-icon text-info" aria-hidden="true"></span> 
+                        <span class="nav-text">My Submitted Bugs</span>
+                    </NavLink>
+                </div>
+            }
+        }
+        
+        <!-- Team Management Section -->
+        @if (UserContext.CanManageUsers())
+        {
+            <hr class="nav-divider" />
+            <div class="nav-item px-3">
+                <small class="nav-section-header">
+                    <i class="bi bi-people-fill me-1"></i>TEAM MANAGEMENT
+                </small>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="users">
+                    <span class="bi bi-person-plus nav-icon text-success" aria-hidden="true"></span> 
+                    <span class="nav-text">Manage @GetManagementScope()</span>
+                </NavLink>
+            </div>
+            
+            @if (currentUser?.Role == UserRole.SuperAdmin)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="roles">
+                        <span class="bi bi-shield-check nav-icon text-danger" aria-hidden="true"></span> 
+                        <span class="nav-text">Roles & Permissions</span>
+                    </NavLink>
+                </div>
+            }
+        }
+        
+        <!-- Reports Section -->
+        @if (currentUser?.Role == UserRole.SuperAdmin || currentUser?.Role == UserRole.DeveloperLead || currentUser?.Role == UserRole.QALead)
+        {
+            <hr class="nav-divider" />
+            <div class="nav-item px-3">
+                <small class="nav-section-header">
+                    <i class="bi bi-graph-up me-1"></i>REPORTS & ANALYTICS
+                </small>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="reports">
+                    <span class="bi bi-bar-chart nav-icon text-info" aria-hidden="true"></span> 
+                    <span class="nav-text">Bug Reports</span>
+                </NavLink>
+            </div>
+            
+            @if (currentUser?.Role == UserRole.SuperAdmin)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="analytics">
+                        <span class="bi bi-pie-chart nav-icon text-warning" aria-hidden="true"></span> 
+                        <span class="nav-text">Analytics Dashboard</span>
+                    </NavLink>
+                </div>
+            }
+        }
         
         <!-- Administration Section -->
-        <hr class="text-white-50" />
-        <div class="nav-item px-3">
-            <small class="text-white-50 fw-bold">ADMINISTRATION</small>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="users">
-                <span class="bi bi-people-fill-nav-menu text-success" aria-hidden="true"></span> User Management
-            </NavLink>
-        </div>
-        
-        <!-- Account Section -->
-        <hr class="text-white-50" />
-        <div class="nav-item px-3">
-            <small class="text-white-50 fw-bold">ACCOUNT</small>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="login">
-                <span class="bi bi-box-arrow-in-right-nav-menu text-warning" aria-hidden="true"></span> Login
-            </NavLink>
-        </div>
+        @if (currentUser?.Role == UserRole.SuperAdmin)
+        {
+            <hr class="nav-divider" />
+            <div class="nav-item px-3">
+                <small class="nav-section-header">
+                    <i class="bi bi-gear-fill me-1"></i>ADMINISTRATION
+                </small>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="projects">
+                    <span class="bi bi-kanban nav-icon text-primary" aria-hidden="true"></span> 
+                    <span class="nav-text">Project Management</span>
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="system">
+                    <span class="bi bi-tools nav-icon text-secondary" aria-hidden="true"></span> 
+                    <span class="nav-text">System Settings</span>
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
 
 @code {
     private bool collapseNavMenu = true;
+    private User? currentUser;
 
     private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUser = await UserContext.GetCurrentUserAsync();
+    }
 
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
+    }
+    
+    private async Task SwitchUser(string userId)
+    {
+        await UserContext.SetCurrentUserAsync(userId);
+        currentUser = await UserContext.GetCurrentUserAsync();
+        StateHasChanged();
+    }
+
+    private string GetRoleDisplayName(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.SuperAdmin => "Super Admin",
+            UserRole.DeveloperLead => "Dev Lead",
+            UserRole.QALead => "QA Lead",
+            UserRole.Tester => "Tester",
+            UserRole.Developer => "Developer",
+            UserRole.Admin => "Admin",
+            _ => role.ToString()
+        };
+    }
+    
+    private string GetManagementScope()
+    {
+        return currentUser?.Role switch
+        {
+            UserRole.SuperAdmin => "All Users",
+            UserRole.DeveloperLead => "Developers",
+            UserRole.QALead => "Testers",
+            _ => "Team"
+        };
     }
 }
