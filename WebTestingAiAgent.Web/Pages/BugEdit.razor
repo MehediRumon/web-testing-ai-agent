@@ -1,0 +1,451 @@
+@page "/bugs/{bugId}/edit"
+@using System.Text.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Edit Bug - @bug?.Title</PageTitle>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/">Home</a></li>
+                    <li class="breadcrumb-item"><a href="/bugs">Bugs</a></li>
+                    <li class="breadcrumb-item"><a href="/bugs/@BugId">@(bug?.Id != null ? $"{bug.Id[..8]}..." : "...")</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading bug details...</span>
+            </div>
+            <p class="mt-3">Loading bug details...</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            @errorMessage
+        </div>
+    }
+    else if (bug != null)
+    {
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="bi bi-pencil me-2"></i>
+                            Edit Bug: @bug.Title
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="bugUpdateRequest" OnValidSubmit="UpdateBug">
+                            <DataAnnotationsValidator />
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Title <span class="text-danger">*</span></label>
+                                        <InputText class="form-control" @bind-Value="bugUpdateRequest.Title" 
+                                                 placeholder="Brief description of the bug" />
+                                        <ValidationMessage For="@(() => bugUpdateRequest.Title)" class="text-danger" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">URL/Menu <span class="text-danger">*</span></label>
+                                        <InputText class="form-control" @bind-Value="bugUpdateRequest.UrlMenu" 
+                                                 placeholder="URL or menu path where bug occurs" />
+                                        <ValidationMessage For="@(() => bugUpdateRequest.UrlMenu)" class="text-danger" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <InputTextArea class="form-control" @bind-Value="bugUpdateRequest.Description" 
+                                             placeholder="Detailed description of the bug, steps to reproduce, expected vs actual behavior" 
+                                             rows="5" />
+                                <ValidationMessage For="@(() => bugUpdateRequest.Description)" class="text-danger" />
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Bug Type <span class="text-danger">*</span></label>
+                                        <InputSelect class="form-select" @bind-Value="bugUpdateRequest.BugType">
+                                            <option value="0">UI/UX (PC)</option>
+                                            <option value="1">UI/UX (Mobile)</option>
+                                            <option value="2">UI/UX (PC & Mobile)</option>
+                                            <option value="3">Functional</option>
+                                            <option value="4">Functional Enhancement</option>
+                                            <option value="5">Business Logic</option>
+                                            <option value="6">Load Test</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => bugUpdateRequest.BugType)" class="text-danger" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Priority <span class="text-danger">*</span></label>
+                                        <InputSelect class="form-select" @bind-Value="bugUpdateRequest.Priority">
+                                            <option value="1">Top Priority</option>
+                                            <option value="0">Regular</option>
+                                            <option value="2">Medium</option>
+                                            <option value="3">Low</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => bugUpdateRequest.Priority)" class="text-danger" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Status</label>
+                                        <InputSelect class="form-select" @bind-Value="bugUpdateRequest.Status">
+                                            <option value="0">Pending</option>
+                                            <option value="1">In Development</option>
+                                            <option value="2">Ready for Testing</option>
+                                            <option value="3">Testing in Progress</option>
+                                            <option value="4">Solved</option>
+                                            <option value="5">Postponed</option>
+                                            <option value="6">Invalid</option>
+                                            <option value="7">Canceled</option>
+                                        </InputSelect>
+                                        <ValidationMessage For="@(() => bugUpdateRequest.Status)" class="text-danger" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Primary Assignee</label>
+                                        <select class="form-select" @bind="bugUpdateRequest.PrimaryAssigneeId">
+                                            <option value="">Select developer...</option>
+                                            @if (developers != null)
+                                            {
+                                                @foreach (var dev in developers)
+                                                {
+                                                    <option value="@dev.Id">@dev.FullName</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Secondary Assignee</label>
+                                        <select class="form-select" @bind="bugUpdateRequest.SecondaryAssigneeId">
+                                            <option value="">Select developer...</option>
+                                            @if (developers != null)
+                                            {
+                                                @foreach (var dev in developers)
+                                                {
+                                                    <option value="@dev.Id">@dev.FullName</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">QA Remarks</label>
+                                        <InputTextArea class="form-control" @bind-Value="bugUpdateRequest.QaRemarks" 
+                                                     placeholder="QA testing notes and remarks" 
+                                                     rows="3" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Developer Remarks</label>
+                                        <InputTextArea class="form-control" @bind-Value="bugUpdateRequest.ProgrammerRemarks" 
+                                                     placeholder="Developer notes and implementation details" 
+                                                     rows="3" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <button type="button" class="btn btn-outline-secondary me-2" @onclick="Cancel">
+                                        <i class="bi bi-arrow-left me-1"></i>Cancel
+                                    </button>
+                                    <a href="/bugs/@BugId" class="btn btn-outline-info">
+                                        <i class="bi bi-eye me-1"></i>View Details
+                                    </a>
+                                </div>
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    }
+                                    <i class="bi bi-check-circle me-1"></i>Update Bug
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- Bug Info Summary -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Bug Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-2"><strong>Bug ID:</strong> <code>@bug.Id</code></p>
+                        <p class="mb-2"><strong>Submitted:</strong> @bug.SubmittedAt.ToString("MMM dd, yyyy")</p>
+                        <p class="mb-2"><strong>Submitted by:</strong> @bug.SubmittedByName</p>
+                        @if (bug.ReopenCount > 0)
+                        {
+                            <p class="mb-0 text-warning"><strong>Reopened:</strong> @bug.ReopenCount time(s)</p>
+                        }
+                    </div>
+                </div>
+
+                <!-- Guidelines -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Edit Guidelines</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="small list-unstyled">
+                            <li class="mb-2"><i class="bi bi-check text-success me-1"></i><strong>Title:</strong> Keep it specific and concise</li>
+                            <li class="mb-2"><i class="bi bi-check text-success me-1"></i><strong>Description:</strong> Include steps to reproduce</li>
+                            <li class="mb-2"><i class="bi bi-check text-success me-1"></i><strong>Priority:</strong> Set based on business impact</li>
+                            <li class="mb-2"><i class="bi bi-check text-success me-1"></i><strong>Assignment:</strong> Choose appropriate developers</li>
+                            <li class="mb-0"><i class="bi bi-check text-success me-1"></i><strong>Status:</strong> Update based on current progress</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Current Images -->
+                @if (bug.Images != null && bug.Images.Any())
+                {
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-images me-2"></i>Attached Images (@bug.Images.Count)</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2">
+                                @foreach (var image in bug.Images)
+                                {
+                                    <div class="col-6">
+                                        <img src="@image.Url" class="img-fluid rounded" alt="@image.Label" style="height: 80px; width: 100%; object-fit: cover;" />
+                                        <small class="text-muted d-block">@image.Label</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Bug not found or you don't have permission to edit it.
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string BugId { get; set; } = string.Empty;
+
+    private BugResponse? bug;
+    private List<UserResponse> developers = new();
+    private UpdateBugRequest bugUpdateRequest = new();
+    private bool loading = true;
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBugDetails();
+        await LoadDevelopers();
+    }
+
+    private async Task LoadBugDetails()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = string.Empty;
+
+            var response = await Http.GetAsync($"api/bugs/{BugId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                bug = JsonSerializer.Deserialize<BugResponse>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                // Populate the update request with current values
+                if (bug != null)
+                {
+                    bugUpdateRequest = new UpdateBugRequest
+                    {
+                        Title = bug.Title,
+                        Description = bug.Description,
+                        UrlMenu = bug.UrlMenu,
+                        BugType = bug.BugType,
+                        Priority = bug.Priority,
+                        Status = bug.Status,
+                        QaRemarks = bug.QaRemarks,
+                        ProgrammerRemarks = bug.ProgrammerRemarks,
+                        PrimaryAssigneeId = "", // Will be set when we load assignments
+                        SecondaryAssigneeId = ""
+                    };
+                }
+            }
+            else
+            {
+                errorMessage = $"Failed to load bug details: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading bug: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task LoadDevelopers()
+    {
+        try
+        {
+            var response = await Http.GetAsync("api/users?role=4"); // Assuming 4 = Developer
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                developers = JsonSerializer.Deserialize<List<UserResponse>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<UserResponse>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load developers: {ex.Message}");
+        }
+    }
+
+    private async Task UpdateBug()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = string.Empty;
+
+            var response = await Http.PutAsJsonAsync($"api/bugs/{BugId}", bugUpdateRequest);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Navigate back to bug details
+                NavigationManager.NavigateTo($"/bugs/{BugId}");
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to update bug: {response.StatusCode} - {errorResponse}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating bug: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo($"/bugs/{BugId}");
+    }
+
+    // Models
+    public class BugResponse
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string UrlMenu { get; set; } = string.Empty;
+        public int BugType { get; set; }
+        public int Priority { get; set; }
+        public int Status { get; set; }
+        public string SubmittedById { get; set; } = string.Empty;
+        public string SubmittedByName { get; set; } = string.Empty;
+        public DateTime SubmittedAt { get; set; }
+        public DateTime? QaLastCheckTime { get; set; }
+        public string QaRemarks { get; set; } = string.Empty;
+        public string ProgrammerRemarks { get; set; } = string.Empty;
+        public int ReopenCount { get; set; }
+        public string? PrimaryAssigneeName { get; set; }
+        public string? SecondaryAssigneeName { get; set; }
+        public List<BugImageResponse> Images { get; set; } = new();
+    }
+
+    public class BugImageResponse
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string Url { get; set; } = string.Empty;
+    }
+
+    public class UserResponse
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public int Role { get; set; }
+        public string? LeadName { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class UpdateBugRequest
+    {
+        [Required]
+        public string Title { get; set; } = string.Empty;
+        
+        public string Description { get; set; } = string.Empty;
+        
+        [Required]
+        public string UrlMenu { get; set; } = string.Empty;
+        
+        public int BugType { get; set; }
+        
+        public int Priority { get; set; }
+        
+        public int Status { get; set; }
+        
+        public string QaRemarks { get; set; } = string.Empty;
+        
+        public string ProgrammerRemarks { get; set; } = string.Empty;
+        
+        public string? PrimaryAssigneeId { get; set; }
+        
+        public string? SecondaryAssigneeId { get; set; }
+    }
+}
