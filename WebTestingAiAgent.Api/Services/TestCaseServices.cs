@@ -1,14 +1,20 @@
-using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using YamlDotNet.Serialization;
 using WebTestingAiAgent.Core.Interfaces;
 using WebTestingAiAgent.Core.Models;
+using WebTestingAiAgent.Api.Data;
 
 namespace WebTestingAiAgent.Api.Services;
 
 public class TestCaseService : ITestCaseService
 {
-    private readonly ConcurrentDictionary<string, TestCase> _testCases = new();
+    private readonly WebTestingDbContext _context;
+
+    public TestCaseService(WebTestingDbContext context)
+    {
+        _context = context;
+    }
 
     public async Task<TestCase> CreateTestCaseAsync(CreateTestCaseRequest request)
     {
@@ -24,48 +30,54 @@ public class TestCaseService : ITestCaseService
             UpdatedAt = DateTime.UtcNow
         };
 
-        _testCases[testCase.Id] = testCase;
-        return await Task.FromResult(testCase);
+        _context.TestCases.Add(testCase);
+        await _context.SaveChangesAsync();
+        return testCase;
     }
 
     public async Task<TestCase?> GetTestCaseAsync(string id)
     {
-        _testCases.TryGetValue(id, out var testCase);
-        return await Task.FromResult(testCase);
+        return await _context.TestCases
+            .Include(tc => tc.Steps)
+            .FirstOrDefaultAsync(tc => tc.Id == id);
     }
 
     public async Task<List<TestCaseResponse>> GetTestCasesAsync(TestCaseListRequest request)
     {
-        var testCases = _testCases.Values.AsEnumerable();
+        var query = _context.TestCases.Include(tc => tc.Steps).AsQueryable();
 
         // Apply filters
         if (!string.IsNullOrEmpty(request.SearchTerm))
         {
-            testCases = testCases.Where(tc => 
-                tc.Name.Contains(request.SearchTerm, StringComparison.OrdinalIgnoreCase) ||
-                tc.Description.Contains(request.SearchTerm, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(tc => 
+                tc.Name.Contains(request.SearchTerm) ||
+                tc.Description.Contains(request.SearchTerm));
         }
 
         if (request.Tags?.Any() == true)
         {
-            testCases = testCases.Where(tc => request.Tags.Any(tag => tc.Tags.Contains(tag)));
+            // For SQLite, we need to search within the JSON tags field
+            foreach (var tag in request.Tags)
+            {
+                query = query.Where(tc => tc.Tags.Contains(tag));
+            }
         }
 
         if (request.Format.HasValue)
         {
-            testCases = testCases.Where(tc => tc.Format == request.Format.Value);
+            query = query.Where(tc => tc.Format == request.Format.Value);
         }
 
         // Apply sorting
-        testCases = request.SortBy?.ToLower() switch
+        query = request.SortBy?.ToLower() switch
         {
-            "name" => request.SortDescending ? testCases.OrderByDescending(tc => tc.Name) : testCases.OrderBy(tc => tc.Name),
-            "createdat" => request.SortDescending ? testCases.OrderByDescending(tc => tc.CreatedAt) : testCases.OrderBy(tc => tc.CreatedAt),
-            _ => request.SortDescending ? testCases.OrderByDescending(tc => tc.UpdatedAt) : testCases.OrderBy(tc => tc.UpdatedAt)
+            "name" => request.SortDescending ? query.OrderByDescending(tc => tc.Name) : query.OrderBy(tc => tc.Name),
+            "createdat" => request.SortDescending ? query.OrderByDescending(tc => tc.CreatedAt) : query.OrderBy(tc => tc.CreatedAt),
+            _ => request.SortDescending ? query.OrderByDescending(tc => tc.UpdatedAt) : query.OrderBy(tc => tc.UpdatedAt)
         };
 
-        // Apply pagination
-        var pagedTestCases = testCases
+        // Apply pagination and convert to response
+        var pagedTestCases = await query
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(tc => new TestCaseResponse
@@ -80,14 +92,18 @@ public class TestCaseService : ITestCaseService
                 Tags = tc.Tags,
                 Format = tc.Format
             })
-            .ToList();
+            .ToListAsync();
 
-        return await Task.FromResult(pagedTestCases);
+        return pagedTestCases;
     }
 
     public async Task<TestCase> UpdateTestCaseAsync(string id, UpdateTestCaseRequest request)
     {
-        if (!_testCases.TryGetValue(id, out var testCase))
+        var testCase = await _context.TestCases
+            .Include(tc => tc.Steps)
+            .FirstOrDefaultAsync(tc => tc.Id == id);
+            
+        if (testCase == null)
             throw new ArgumentException($"Test case with ID {id} not found");
 
         if (!string.IsNullOrEmpty(request.Name))
@@ -106,20 +122,29 @@ public class TestCaseService : ITestCaseService
             testCase.Format = request.Format.Value;
 
         testCase.UpdatedAt = DateTime.UtcNow;
-        _testCases[id] = testCase;
+        await _context.SaveChangesAsync();
 
-        return await Task.FromResult(testCase);
+        return testCase;
     }
 
     public async Task<bool> DeleteTestCaseAsync(string id)
     {
-        var removed = _testCases.TryRemove(id, out _);
-        return await Task.FromResult(removed);
+        var testCase = await _context.TestCases.FindAsync(id);
+        if (testCase == null)
+            return false;
+
+        _context.TestCases.Remove(testCase);
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     public async Task<string> ExportTestCaseAsync(string id, TestCaseFormat format)
     {
-        if (!_testCases.TryGetValue(id, out var testCase))
+        var testCase = await _context.TestCases
+            .Include(tc => tc.Steps)
+            .FirstOrDefaultAsync(tc => tc.Id == id);
+            
+        if (testCase == null)
             throw new ArgumentException($"Test case with ID {id} not found");
 
         return format switch
@@ -145,7 +170,8 @@ public class TestCaseService : ITestCaseService
         testCase.CreatedAt = DateTime.UtcNow;
         testCase.UpdatedAt = DateTime.UtcNow;
 
-        _testCases[testCase.Id] = testCase;
+        _context.TestCases.Add(testCase);
+        await _context.SaveChangesAsync();
         return testCase;
     }
 
