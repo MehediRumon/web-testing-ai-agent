@@ -704,13 +704,39 @@ public class ExecutorService : IExecutorService
         {
             var options = CreateChromeOptions(config);
             
-            // Use default ChromeDriver service - this will automatically find chromedriver
-            // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
-            using var driver = new ChromeDriver(options);
-            // Reduce implicit wait for faster execution
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
-            // Set page load timeout to prevent hanging
-            driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(15);
+            // Use system ChromeDriver for better compatibility (ExecutePlanAsync method)
+            IWebDriver driver;
+            try
+            {
+                // Try to use system ChromeDriver first
+                var service = ChromeDriverService.CreateDefaultService("/usr/bin");
+                service.HideCommandPromptWindow = true;
+                driver = new ChromeDriver(service, options);
+                Console.WriteLine("ChromeDriver created successfully using system driver.");
+            }
+            catch (Exception systemEx)
+            {
+                Console.WriteLine($"System ChromeDriver failed: {systemEx.Message}");
+                Console.WriteLine("Falling back to package ChromeDriver...");
+                try
+                {
+                    // Fallback to package ChromeDriver
+                    driver = new ChromeDriver(options);
+                    Console.WriteLine("ChromeDriver created successfully using package driver.");
+                }
+                catch (Exception packageEx)
+                {
+                    Console.WriteLine($"Package ChromeDriver also failed: {packageEx.Message}");
+                    throw new InvalidOperationException($"ChromeDriver initialization failed. System error: {systemEx.Message}, Package error: {packageEx.Message}");
+                }
+            }
+            
+            using (driver)
+            {
+                // Reduce implicit wait for faster execution
+                driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
+                // Set page load timeout to prevent hanging
+                driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(15);
             
             try
             {
@@ -733,6 +759,7 @@ public class ExecutorService : IExecutorService
             {
                 driver.Quit();
             }
+            } // End using (driver)
         }
         catch (Exception ex) when (ex.Message.Contains("cannot find Chrome binary") || 
                                    ex.Message.Contains("chromedriver") || 
@@ -773,13 +800,39 @@ public class ExecutorService : IExecutorService
         {
             var options = CreateChromeOptions(config);
             
-            // Use default ChromeDriver service - this will automatically find chromedriver
-            // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
-            using var driver = new ChromeDriver(options);
-            // Reduce implicit wait for faster execution
-            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
-            // Set page load timeout to prevent hanging
-            driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(15);
+            // Use system ChromeDriver for better compatibility (ExecuteStepAsync method)
+            IWebDriver driver;
+            try
+            {
+                // Try to use system ChromeDriver first
+                var service = ChromeDriverService.CreateDefaultService("/usr/bin");
+                service.HideCommandPromptWindow = true;
+                driver = new ChromeDriver(service, options);
+                Console.WriteLine("ChromeDriver created successfully using system driver.");
+            }
+            catch (Exception systemEx)
+            {
+                Console.WriteLine($"System ChromeDriver failed: {systemEx.Message}");
+                Console.WriteLine("Falling back to package ChromeDriver...");
+                try
+                {
+                    // Fallback to package ChromeDriver
+                    driver = new ChromeDriver(options);
+                    Console.WriteLine("ChromeDriver created successfully using package driver.");
+                }
+                catch (Exception packageEx)
+                {
+                    Console.WriteLine($"Package ChromeDriver also failed: {packageEx.Message}");
+                    throw new InvalidOperationException($"ChromeDriver initialization failed. System error: {systemEx.Message}, Package error: {packageEx.Message}");
+                }
+            }
+            
+            using (driver)
+            {
+                // Reduce implicit wait for faster execution
+                driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
+                // Set page load timeout to prevent hanging
+                driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(15);
             
             try
             {
@@ -789,6 +842,7 @@ public class ExecutorService : IExecutorService
             {
                 driver.Quit();
             }
+            } // End using (driver)
         }
         catch (Exception ex) when (ex.Message.Contains("cannot find Chrome binary") || 
                                    ex.Message.Contains("chromedriver") || 
