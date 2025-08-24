@@ -498,19 +498,22 @@ public class BrowserAutomationService : IBrowserAutomationService
         {
             Console.WriteLine("Starting Chrome driver...");
             
+            // Ensure DISPLAY environment variable is properly set for ChromeDriver
+            var display = Environment.GetEnvironmentVariable("DISPLAY");
+            if (!string.IsNullOrEmpty(display))
+            {
+                Console.WriteLine($"Using DISPLAY: {display}");
+            }
+            
             // Simplified ChromeDriver initialization with timeout
             var driverTask = Task.Run(async () => {
-                ChromeDriver? driver = null;
-                
                 try
                 {
-                    Console.WriteLine("Creating ChromeDriver with system path /usr/bin...");
-                    var service = ChromeDriverService.CreateDefaultService("/usr/bin");
-                    service.SuppressInitialDiagnosticInformation = true;
-                    service.HideCommandPromptWindow = true;
+                    Console.WriteLine("Creating ChromeDriver with auto-detected driver path...");
                     
-                    // Create driver with shortened initialization timeout
-                    driver = new ChromeDriver(service, options, TimeSpan.FromSeconds(20));
+                    // Use default ChromeDriver constructor - this will automatically find chromedriver
+                    // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
+                    var driver = new ChromeDriver(options);
                     Console.WriteLine("ChromeDriver created successfully.");
                     
                     // Set timeouts
@@ -522,18 +525,21 @@ public class BrowserAutomationService : IBrowserAutomationService
                 catch (Exception ex)
                 {
                     Console.WriteLine($"ChromeDriver creation failed: {ex.Message}");
-                    driver?.Quit();
+                    Console.WriteLine($"Common solutions:");
+                    Console.WriteLine($"  1. Ensure Google Chrome is installed");
+                    Console.WriteLine($"  2. ChromeDriver version matches Chrome version");
+                    Console.WriteLine($"  3. ChromeDriver is in PATH or use Selenium.WebDriver.ChromeDriver package");
                     throw;
                 }
             });
             
-            // Wait for driver creation with 25 second timeout
-            var timeoutTask = Task.Delay(25000);
+            // Wait for driver creation with 10 second timeout (reduced from 25)
+            var timeoutTask = Task.Delay(10000);
             var completedTask = await Task.WhenAny(driverTask, timeoutTask);
             
             if (completedTask == timeoutTask)
             {
-                throw new TimeoutException("ChromeDriver initialization timed out after 25 seconds");
+                throw new TimeoutException("ChromeDriver initialization timed out after 10 seconds");
             }
             
             var driver = await driverTask;
