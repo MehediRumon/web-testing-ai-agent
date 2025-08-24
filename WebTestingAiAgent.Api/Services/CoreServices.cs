@@ -704,7 +704,9 @@ public class ExecutorService : IExecutorService
         {
             var options = CreateChromeOptions(config);
             
-            using var driver = new ChromeDriver("/usr/bin", options);
+            // Use default ChromeDriver service - this will automatically find chromedriver
+            // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
+            using var driver = new ChromeDriver(options);
             // Reduce implicit wait for faster execution
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
             // Set page load timeout to prevent hanging
@@ -771,7 +773,9 @@ public class ExecutorService : IExecutorService
         {
             var options = CreateChromeOptions(config);
             
-            using var driver = new ChromeDriver("/usr/bin", options);
+            // Use default ChromeDriver service - this will automatically find chromedriver
+            // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
+            using var driver = new ChromeDriver(options);
             // Reduce implicit wait for faster execution
             driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(3);
             // Set page load timeout to prevent hanging
