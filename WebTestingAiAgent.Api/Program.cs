@@ -41,8 +41,8 @@ builder.Services.AddScoped<IBugImageService, BugImageService>();
 
 // Register new test case recording and execution services
 builder.Services.AddScoped<ITestCaseService, TestCaseService>();
-builder.Services.AddScoped<IBrowserAutomationService, BrowserAutomationService>();
-builder.Services.AddScoped<IRecordingService, RecordingService>();
+builder.Services.AddSingleton<IBrowserAutomationService, BrowserAutomationService>();
+builder.Services.AddSingleton<IRecordingService, RecordingService>();
 builder.Services.AddScoped<ITestExecutionService, TestExecutionService>();
 
 var app = builder.Build();
