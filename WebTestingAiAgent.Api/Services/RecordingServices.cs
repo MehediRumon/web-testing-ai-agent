@@ -10,6 +10,7 @@ namespace WebTestingAiAgent.Api.Services;
 public class RecordingService : IRecordingService
 {
     private readonly ConcurrentDictionary<string, RecordingSession> _sessions = new();
+    private readonly ConcurrentDictionary<string, Timer> _recordingTimers = new();
     private readonly IBrowserAutomationService _browserService;
     private readonly ITestCaseService _testCaseService;
 
@@ -51,6 +52,12 @@ public class RecordingService : IRecordingService
             Metadata = new Dictionary<string, object> { ["browserSessionId"] = browserSessionId }
         });
 
+        // Start interaction collection timer
+        StartInteractionCollectionTimer(session.Id, browserSessionId);
+
+        // Start recording duration timer
+        StartRecordingDurationTimer(session.Id);
+
         return session;
     }
 
@@ -72,7 +79,8 @@ public class RecordingService : IRecordingService
                 Status = s.Status,
                 StepCount = s.Steps.Count,
                 StartedAt = s.StartedAt,
-                EndedAt = s.EndedAt
+                EndedAt = s.EndedAt,
+                RecordingDuration = CalculateCurrentDuration(s)
             })
             .ToList();
 
@@ -86,12 +94,42 @@ public class RecordingService : IRecordingService
 
         session.Status = RecordingStatus.Stopped;
         session.EndedAt = DateTime.UtcNow;
+        
+        // Update final recording duration
+        UpdateRecordingDuration(session);
 
-        // Stop browser session
+        // Stop timers
+        if (_recordingTimers.TryRemove(sessionId, out var timer))
+        {
+            timer.Dispose();
+        }
+
+        // Collect any remaining captured interactions
         var browserSessionId = GetBrowserSessionId(session);
         if (!string.IsNullOrEmpty(browserSessionId))
         {
+            try
+            {
+                var capturedSteps = await _browserService.CollectCapturedInteractionsAsync(browserSessionId);
+                foreach (var step in capturedSteps)
+                {
+                    step.Order = session.Steps.Count;
+                    session.Steps.Add(step);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error collecting final interactions: {ex.Message}");
+            }
+
+            // Stop browser session
             await _browserService.StopBrowserSessionAsync(browserSessionId);
+        }
+
+        // Auto-execute if enabled
+        if (session.Settings.AutoExecuteAfterRecording && session.Steps.Count > 1) // More than just session_start
+        {
+            _ = Task.Run(async () => await AutoExecuteRecordingAsync(session));
         }
 
         return session;
@@ -106,6 +144,18 @@ public class RecordingService : IRecordingService
             throw new InvalidOperationException($"Cannot pause session in status {session.Status}");
 
         session.Status = RecordingStatus.Paused;
+        session.PausedAt = DateTime.UtcNow;
+        
+        // Update recording duration
+        UpdateRecordingDuration(session);
+
+        // Pause browser interaction capture
+        var browserSessionId = GetBrowserSessionId(session);
+        if (!string.IsNullOrEmpty(browserSessionId))
+        {
+            await _browserService.SetCaptureStateAsync(browserSessionId, false);
+        }
+
         return await Task.FromResult(session);
     }
 
@@ -118,6 +168,15 @@ public class RecordingService : IRecordingService
             throw new InvalidOperationException($"Cannot resume session in status {session.Status}");
 
         session.Status = RecordingStatus.Recording;
+        session.PausedAt = null;
+
+        // Resume browser interaction capture
+        var browserSessionId = GetBrowserSessionId(session);
+        if (!string.IsNullOrEmpty(browserSessionId))
+        {
+            await _browserService.SetCaptureStateAsync(browserSessionId, true);
+        }
+
         return await Task.FromResult(session);
     }
 
@@ -207,11 +266,90 @@ public class RecordingService : IRecordingService
             ? sessionId?.ToString() 
             : null;
     }
+
+    private void StartInteractionCollectionTimer(string sessionId, string browserSessionId)
+    {
+        var timer = new Timer(async _ =>
+        {
+            if (_sessions.TryGetValue(sessionId, out var session) && session.Status == RecordingStatus.Recording)
+            {
+                try
+                {
+                    var capturedSteps = await _browserService.CollectCapturedInteractionsAsync(browserSessionId);
+                    foreach (var step in capturedSteps)
+                    {
+                        await AddStepAsync(sessionId, step);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error collecting interactions for session {sessionId}: {ex.Message}");
+                }
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)); // Collect every second
+
+        _recordingTimers[sessionId] = timer;
+    }
+
+    private void StartRecordingDurationTimer(string sessionId)
+    {
+        var durationTimer = new Timer(_ =>
+        {
+            if (_sessions.TryGetValue(sessionId, out var session))
+            {
+                UpdateRecordingDuration(session);
+                
+                // Auto-stop if max duration reached
+                if (session.RecordingDuration.TotalMinutes >= session.Settings.MaxRecordingMinutes)
+                {
+                    _ = Task.Run(async () => await StopRecordingAsync(sessionId));
+                }
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1)); // Update every second
+    }
+
+    private void UpdateRecordingDuration(RecordingSession session)
+    {
+        var endTime = session.PausedAt ?? session.EndedAt ?? DateTime.UtcNow;
+        session.RecordingDuration = endTime - session.StartedAt;
+    }
+
+    private TimeSpan CalculateCurrentDuration(RecordingSession session)
+    {
+        var endTime = session.PausedAt ?? session.EndedAt ?? DateTime.UtcNow;
+        return endTime - session.StartedAt;
+    }
+
+    private async Task AutoExecuteRecordingAsync(RecordingSession session)
+    {
+        try
+        {
+            // Convert recording to test case
+            var testCase = new TestCase
+            {
+                Name = $"{session.Name}_AutoExecute",
+                Description = $"Auto-execution of recording: {session.Name}",
+                BaseUrl = session.BaseUrl,
+                Steps = session.Steps.Where(s => s.Action != "session_start").ToList(),
+                Tags = new List<string> { "recorded", "auto-execute" },
+                Format = TestCaseFormat.Json
+            };
+
+            // TODO: Execute the test case using the test execution service
+            // This would require injecting ITestExecutionService
+            Console.WriteLine($"Auto-executing recorded test case: {testCase.Name}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error auto-executing recording {session.Id}: {ex.Message}");
+        }
+    }
 }
 
 public class BrowserAutomationService : IBrowserAutomationService
 {
     private readonly ConcurrentDictionary<string, IWebDriver> _browserSessions = new();
+    private readonly ConcurrentDictionary<string, BrowserInteractionCapture> _interactionCaptures = new();
 
     public async Task<string> StartBrowserSessionAsync(string baseUrl, ExecutionSettings settings)
     {
@@ -233,11 +371,26 @@ public class BrowserAutomationService : IBrowserAutomationService
         // Navigate to base URL
         driver.Navigate().GoToUrl(baseUrl);
         
+        // Set up interaction capture
+        var interactionCapture = new BrowserInteractionCapture();
+        _interactionCaptures[sessionId] = interactionCapture;
+        
+        // Inject the capturing script after navigation
+        await Task.Delay(1000); // Wait for page to load
+        interactionCapture.InjectCapturingScript(driver);
+        interactionCapture.StartCapturing();
+        
         return await Task.FromResult(sessionId);
     }
 
     public async Task StopBrowserSessionAsync(string sessionId)
     {
+        // Stop interaction capture first
+        if (_interactionCaptures.TryRemove(sessionId, out var capture))
+        {
+            capture.StopCapturing();
+        }
+        
         if (_browserSessions.TryRemove(sessionId, out var driver))
         {
             driver.Quit();
@@ -380,5 +533,33 @@ public class BrowserAutomationService : IBrowserAutomationService
         {
             return await Task.FromResult(new Dictionary<string, object> { ["error"] = ex.Message });
         }
+    }
+
+    public async Task<List<RecordedStep>> CollectCapturedInteractionsAsync(string sessionId)
+    {
+        if (!_browserSessions.TryGetValue(sessionId, out var driver))
+            throw new ArgumentException($"Browser session {sessionId} not found");
+
+        if (!_interactionCaptures.TryGetValue(sessionId, out var capture))
+            return new List<RecordedStep>();
+
+        // Collect events from browser
+        capture.CollectEventsFromBrowser(driver);
+        
+        // Return captured events
+        return capture.GetCapturedEvents();
+    }
+
+    public async Task SetCaptureStateAsync(string sessionId, bool isCapturing)
+    {
+        if (!_browserSessions.TryGetValue(sessionId, out var driver))
+            throw new ArgumentException($"Browser session {sessionId} not found");
+
+        if (_interactionCaptures.TryGetValue(sessionId, out var capture))
+        {
+            capture.SetCapturingState(driver, isCapturing);
+        }
+        
+        await Task.CompletedTask;
     }
 }

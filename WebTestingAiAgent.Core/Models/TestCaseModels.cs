@@ -38,6 +38,8 @@ public class RecordingSession
     public RecordingStatus Status { get; set; } = RecordingStatus.NotStarted;
     public DateTime StartedAt { get; set; }
     public DateTime? EndedAt { get; set; }
+    public DateTime? PausedAt { get; set; }
+    public TimeSpan RecordingDuration { get; set; } = TimeSpan.Zero;
     public RecordingSettings Settings { get; set; } = new();
 }
 
@@ -48,6 +50,8 @@ public class RecordingSettings
     public bool CaptureConsole { get; set; } = false;
     public int MaxSteps { get; set; } = 100;
     public int TimeoutMs { get; set; } = 30000;
+    public int MaxRecordingMinutes { get; set; } = 60;
+    public bool AutoExecuteAfterRecording { get; set; } = false;
 }
 
 public class TestExecution
@@ -195,6 +199,7 @@ public class RecordingSessionResponse
     public int StepCount { get; set; }
     public DateTime StartedAt { get; set; }
     public DateTime? EndedAt { get; set; }
+    public TimeSpan RecordingDuration { get; set; } = TimeSpan.Zero;
 }
 
 public class TestExecutionResponse

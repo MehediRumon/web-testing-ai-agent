@@ -58,6 +58,8 @@ public interface IBrowserAutomationService
     Task<byte[]> TakeScreenshotAsync(string sessionId);
     Task<string> GetPageSourceAsync(string sessionId);
     Task<Dictionary<string, object>> GetElementInfoAsync(string sessionId, string selector);
+    Task<List<RecordedStep>> CollectCapturedInteractionsAsync(string sessionId);
+    Task SetCaptureStateAsync(string sessionId, bool isCapturing);
 }
 
 /// <summary>
