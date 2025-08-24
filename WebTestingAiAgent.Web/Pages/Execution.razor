@@ -1,0 +1,443 @@
+@page "/execution"
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Test Execution - Web Testing AI Agent</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="bi bi-play-circle text-success me-2"></i>Test Execution</h2>
+                <div>
+                    <button class="btn btn-outline-secondary me-2" @onclick="LoadActiveExecutions">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "active" ? "active" : "")" 
+                    @onclick="@(() => SetActiveTab("active"))">
+                <i class="bi bi-play-circle me-2"></i>Active Executions
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "history" ? "active" : "")" 
+                    @onclick="@(() => SetActiveTab("history"))">
+                <i class="bi bi-clock-history me-2"></i>Execution History
+            </button>
+        </li>
+    </ul>
+
+    <!-- Active Executions Tab -->
+    @if (activeTab == "active")
+    {
+        @if (loadingActive)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3">Loading active executions...</p>
+            </div>
+        }
+        else if (activeExecutions?.Any() == true)
+        {
+            <div class="row g-4">
+                @foreach (var execution in activeExecutions)
+                {
+                    <div class="col-lg-6 col-xl-4">
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">@execution.TestCaseName</h6>
+                                    <span class="badge @GetStatusBadgeClass(execution.Status)">@execution.Status</span>
+                                </div>
+                                
+                                <p class="card-text small text-muted mb-2">ID: @execution.Id</p>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="small">Progress</span>
+                                        <span class="small">@execution.CompletedSteps / @execution.TotalSteps</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar @GetProgressBarClass(execution.Status)" 
+                                             style="width: @GetProgressPercentage(execution)%"></div>
+                                    </div>
+                                </div>
+
+                                <p class="card-text small">
+                                    <i class="bi bi-clock me-1"></i>Started @execution.StartedAt.ToString("HH:mm")
+                                    @if (execution.FailedSteps > 0)
+                                    {
+                                        <br />
+                                        <span><i class="bi bi-exclamation-triangle text-danger me-1"></i>@execution.FailedSteps failed steps</span>
+                                    }
+                                </p>
+
+                                @if (!string.IsNullOrEmpty(execution.ErrorMessage))
+                                {
+                                    <div class="alert alert-danger alert-sm p-2 mb-2">
+                                        <small>@execution.ErrorMessage</small>
+                                    </div>
+                                }
+
+                                <div class="btn-group w-100" role="group">
+                                    @if (execution.Status == ExecutionStatus.Running)
+                                    {
+                                        <button class="btn btn-sm btn-warning" @onclick="() => PauseExecution(execution.Id)">
+                                            <i class="bi bi-pause"></i>
+                                        </button>
+                                    }
+                                    else if (execution.Status == ExecutionStatus.Paused)
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick="() => ResumeExecution(execution.Id)">
+                                            <i class="bi bi-play"></i>
+                                        </button>
+                                    }
+                                    
+                                    @if (execution.Status == ExecutionStatus.Running || execution.Status == ExecutionStatus.Paused)
+                                    {
+                                        <button class="btn btn-sm btn-danger" @onclick="() => StopExecution(execution.Id)">
+                                            <i class="bi bi-stop"></i>
+                                        </button>
+                                    }
+                                    
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewExecution(execution.Id)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-play-circle text-muted display-1 mb-4"></i>
+                    <h4 class="mb-3">No Active Executions</h4>
+                    <p class="text-muted mb-4">
+                        Execute test cases to see them appear here in real-time.
+                    </p>
+                    <a href="/testcases" class="btn btn-primary btn-lg">
+                        <i class="bi bi-collection me-2"></i>Browse Test Cases
+                    </a>
+                </div>
+            </div>
+        }
+    }
+
+    <!-- Execution History Tab -->
+    @if (activeTab == "history")
+    {
+        @if (loadingHistory)
+        {
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-3">Loading execution history...</p>
+            </div>
+        }
+        else if (executionHistory?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Test Case</th>
+                            <th>Status</th>
+                            <th>Steps</th>
+                            <th>Duration</th>
+                            <th>Started</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var execution in executionHistory)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@execution.TestCaseName</strong>
+                                    <br>
+                                    <small class="text-muted">@execution.Id</small>
+                                </td>
+                                <td>
+                                    <span class="badge @GetStatusBadgeClass(execution.Status)">@execution.Status</span>
+                                </td>
+                                <td>
+                                    <span class="text-success">@execution.CompletedSteps</span> / @execution.TotalSteps
+                                    @if (execution.FailedSteps > 0)
+                                    {
+                                        <br />
+                                        <small class="text-danger">@execution.FailedSteps failed</small>
+                                    }
+                                </td>
+                                <td>
+                                    @if (execution.EndedAt.HasValue)
+                                    {
+                                        @GetDurationText(execution.StartedAt, execution.EndedAt.Value)
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Running...</span>
+                                    }
+                                </td>
+                                <td>
+                                    @execution.StartedAt.ToString("MMM dd, HH:mm")
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => ViewExecution(execution.Id)">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-clock-history text-muted display-1 mb-4"></i>
+                    <h4 class="mb-3">No Execution History</h4>
+                    <p class="text-muted mb-4">
+                        Execute some test cases to see their history here.
+                    </p>
+                    <a href="/testcases" class="btn btn-primary btn-lg">
+                        <i class="bi bi-collection me-2"></i>Browse Test Cases
+                    </a>
+                </div>
+            </div>
+        }
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger mt-3">
+            <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+        </div>
+    }
+</div>
+
+@code {
+    private List<TestExecutionResponse>? activeExecutions;
+    private List<TestExecutionResponse>? executionHistory;
+    private bool loadingActive = true;
+    private bool loadingHistory = false;
+    private string errorMessage = string.Empty;
+    private string activeTab = "active";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadActiveExecutions();
+    }
+
+    private async Task SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        
+        if (tab == "history" && executionHistory == null)
+        {
+            await LoadExecutionHistory();
+        }
+    }
+
+    private async Task LoadActiveExecutions()
+    {
+        try
+        {
+            loadingActive = true;
+            errorMessage = string.Empty;
+
+            var response = await Http.GetAsync("http://localhost:5146/api/execution/active");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                activeExecutions = JsonSerializer.Deserialize<List<TestExecutionResponse>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            else
+            {
+                errorMessage = "Failed to load active executions";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading active executions: {ex.Message}";
+        }
+        finally
+        {
+            loadingActive = false;
+        }
+    }
+
+    private async Task LoadExecutionHistory()
+    {
+        try
+        {
+            loadingHistory = true;
+            errorMessage = string.Empty;
+
+            var response = await Http.GetAsync("http://localhost:5146/api/execution/history?pageSize=50");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                executionHistory = JsonSerializer.Deserialize<List<TestExecutionResponse>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            else
+            {
+                errorMessage = "Failed to load execution history";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading execution history: {ex.Message}";
+        }
+        finally
+        {
+            loadingHistory = false;
+        }
+    }
+
+    private async Task PauseExecution(string executionId)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"http://localhost:5146/api/execution/{executionId}/pause", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadActiveExecutions();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error pausing execution: {ex.Message}";
+        }
+    }
+
+    private async Task ResumeExecution(string executionId)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"http://localhost:5146/api/execution/{executionId}/resume", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadActiveExecutions();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error resuming execution: {ex.Message}";
+        }
+    }
+
+    private async Task StopExecution(string executionId)
+    {
+        try
+        {
+            if (await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to stop this execution?"))
+            {
+                var response = await Http.PostAsync($"http://localhost:5146/api/execution/{executionId}/stop", null);
+                if (response.IsSuccessStatusCode)
+                {
+                    await LoadActiveExecutions();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error stopping execution: {ex.Message}";
+        }
+    }
+
+    private async Task ViewExecution(string executionId)
+    {
+        // TODO: Navigate to execution detail page
+        await JSRuntime.InvokeVoidAsync("alert", "View execution details functionality coming soon!");
+    }
+
+    private string GetStatusBadgeClass(ExecutionStatus status)
+    {
+        return status switch
+        {
+            ExecutionStatus.Running => "bg-primary",
+            ExecutionStatus.Paused => "bg-warning",
+            ExecutionStatus.Completed => "bg-success",
+            ExecutionStatus.Failed => "bg-danger",
+            ExecutionStatus.Cancelled => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetProgressBarClass(ExecutionStatus status)
+    {
+        return status switch
+        {
+            ExecutionStatus.Running => "bg-primary",
+            ExecutionStatus.Paused => "bg-warning",
+            ExecutionStatus.Completed => "bg-success",
+            ExecutionStatus.Failed => "bg-danger",
+            ExecutionStatus.Cancelled => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private double GetProgressPercentage(TestExecutionResponse execution)
+    {
+        if (execution.TotalSteps == 0) return 0;
+        return Math.Round((double)execution.CompletedSteps / execution.TotalSteps * 100, 1);
+    }
+
+    private string GetDurationText(DateTime start, DateTime end)
+    {
+        var duration = end - start;
+        if (duration.TotalHours >= 1)
+            return $"{duration.Hours}h {duration.Minutes}m";
+        if (duration.TotalMinutes >= 1)
+            return $"{duration.Minutes}m {duration.Seconds}s";
+        return $"{duration.Seconds}s";
+    }
+
+    // Models for this component
+    public class TestExecutionResponse
+    {
+        public string Id { get; set; } = string.Empty;
+        public string TestCaseId { get; set; } = string.Empty;
+        public string TestCaseName { get; set; } = string.Empty;
+        public ExecutionStatus Status { get; set; }
+        public DateTime StartedAt { get; set; }
+        public DateTime? EndedAt { get; set; }
+        public int TotalSteps { get; set; }
+        public int CompletedSteps { get; set; }
+        public int FailedSteps { get; set; }
+        public string? ErrorMessage { get; set; }
+    }
+
+    public enum ExecutionStatus
+    {
+        NotStarted,
+        Running,
+        Paused,
+        Completed,
+        Failed,
+        Cancelled
+    }
+}

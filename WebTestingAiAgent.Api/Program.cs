@@ -24,13 +24,19 @@ builder.Services.AddCors(options =>
 // Register essential infrastructure services (needed by bug tracking)
 builder.Services.AddScoped<IStorageService, StorageService>();
 
-// Register bug tracking services
+// Register bug tracking services (keeping for backward compatibility)
 builder.Services.AddSingleton<IBugStorageService, BugStorageService>();
 builder.Services.AddScoped<IBugService, BugService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBugAuthorizationService, BugAuthorizationService>();
 builder.Services.AddScoped<IBugValidationService, BugValidationService>();
 builder.Services.AddScoped<IBugImageService, BugImageService>();
+
+// Register new test case recording and execution services
+builder.Services.AddScoped<ITestCaseService, TestCaseService>();
+builder.Services.AddScoped<IBrowserAutomationService, BrowserAutomationService>();
+builder.Services.AddScoped<IRecordingService, RecordingService>();
+builder.Services.AddScoped<ITestExecutionService, TestExecutionService>();
 
 var app = builder.Build();
 
