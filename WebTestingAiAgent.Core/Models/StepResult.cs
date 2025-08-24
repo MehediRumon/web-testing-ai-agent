@@ -6,12 +6,23 @@ public class Evidence
     public string? DomSnapshotPath { get; set; }
     public List<string> Console { get; set; } = new();
     public List<NetworkRequest> Network { get; set; } = new();
+    public List<Screenshot> Screenshots { get; set; } = new();
 }
 
 public class NetworkRequest
 {
     public string Url { get; set; } = string.Empty;
     public int Status { get; set; }
+    public string Method { get; set; } = string.Empty;
+    public int StatusCode { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+
+public class Screenshot
+{
+    public string Data { get; set; } = string.Empty; // Base64 encoded image data
+    public DateTime Timestamp { get; set; }
+    public string Description { get; set; } = string.Empty;
 }
 
 public class StepError

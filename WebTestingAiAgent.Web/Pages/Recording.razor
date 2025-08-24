@@ -1,0 +1,452 @@
+@page "/recording"
+@using System.Text.Json
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Recording Sessions - Web Testing AI Agent</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="bi bi-record2 text-danger me-2"></i>Recording Sessions</h2>
+                <button class="btn btn-danger" @onclick="ShowNewRecordingModal">
+                    <i class="bi bi-plus-circle me-2"></i>Start New Recording
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @if (loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading recording sessions...</p>
+        </div>
+    }
+    else
+    {
+        <!-- Active Sessions -->
+        @if (activeSessions?.Any() == true)
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h4 class="mb-3"><i class="bi bi-play-circle text-success me-2"></i>Active Sessions</h4>
+                    <div class="row g-3">
+                        @foreach (var session in activeSessions)
+                        {
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="card-title mb-0">@session.Name</h6>
+                                            <span class="badge @GetStatusBadgeClass(session.Status)">@session.Status</span>
+                                        </div>
+                                        <p class="card-text small text-muted mb-2">@session.BaseUrl</p>
+                                        <p class="card-text small">
+                                            <i class="bi bi-collection me-1"></i>@session.StepCount steps
+                                            <br>
+                                            <i class="bi bi-clock me-1"></i>Started @session.StartedAt.ToString("HH:mm")
+                                        </p>
+                                        <div class="btn-group w-100" role="group">
+                                            @if (session.Status == RecordingStatus.Recording)
+                                            {
+                                                <button class="btn btn-sm btn-warning" @onclick="() => PauseRecording(session.Id)">
+                                                    <i class="bi bi-pause"></i>
+                                                </button>
+                                            }
+                                            else if (session.Status == RecordingStatus.Paused)
+                                            {
+                                                <button class="btn btn-sm btn-success" @onclick="() => ResumeRecording(session.Id)">
+                                                    <i class="bi bi-play"></i>
+                                                </button>
+                                            }
+                                            <button class="btn btn-sm btn-danger" @onclick="() => StopRecording(session.Id)">
+                                                <i class="bi bi-stop"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-primary" @onclick="() => ShowSaveModal(session.Id)">
+                                                <i class="bi bi-save"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Instructions -->
+        @if (activeSessions?.Any() != true)
+        {
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-record2 text-muted display-1 mb-4"></i>
+                            <h4 class="mb-3">No Active Recording Sessions</h4>
+                            <p class="text-muted mb-4">
+                                Start a new recording session to capture user interactions and create automated test cases.
+                            </p>
+                            <button class="btn btn-danger btn-lg" @onclick="ShowNewRecordingModal">
+                                <i class="bi bi-record-circle me-2"></i>Start Recording
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<!-- New Recording Modal -->
+@if (showNewRecordingModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-record2 me-2"></i>Start New Recording
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseNewRecordingModal"></button>
+                </div>
+                <EditForm Model="newRecordingRequest" OnValidSubmit="StartRecording">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>@errorMessage
+                            </div>
+                        }
+
+                        <div class="mb-3">
+                            <label class="form-label">Recording Name <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="newRecordingRequest.Name" 
+                                     placeholder="Enter recording session name" />
+                            <ValidationMessage For="@(() => newRecordingRequest.Name)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Base URL <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="newRecordingRequest.BaseUrl" 
+                                     placeholder="https://example.com" />
+                            <ValidationMessage For="@(() => newRecordingRequest.BaseUrl)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <InputCheckbox class="form-check-input" @bind-Value="captureScreenshots" />
+                                <label class="form-check-label">Capture screenshots</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseNewRecordingModal">Cancel</button>
+                        <button type="submit" class="btn btn-danger" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-record-circle me-2"></i>Start Recording
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Save as Test Case Modal -->
+@if (showSaveModal)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-save me-2"></i>Save as Test Case
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseSaveModal"></button>
+                </div>
+                <EditForm Model="saveRequest" OnValidSubmit="SaveAsTestCase">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Test Case Name <span class="text-danger">*</span></label>
+                            <InputText class="form-control" @bind-Value="saveRequest.TestCaseName" 
+                                     placeholder="Enter test case name" />
+                            <ValidationMessage For="@(() => saveRequest.TestCaseName)" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <InputTextArea class="form-control" @bind-Value="saveRequest.Description" 
+                                         placeholder="Enter test case description" rows="3" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseSaveModal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            <i class="bi bi-save me-2"></i>Save Test Case
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RecordingSessionResponse>? activeSessions;
+    private bool loading = true;
+    private bool showNewRecordingModal = false;
+    private bool showSaveModal = false;
+    private bool isSubmitting = false;
+    private string errorMessage = string.Empty;
+    private string selectedSessionId = string.Empty;
+
+    private StartRecordingRequest newRecordingRequest = new();
+    private SaveAsTestCaseRequest saveRequest = new();
+    private bool captureScreenshots = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadActiveSessions();
+    }
+
+    private async Task LoadActiveSessions()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = string.Empty;
+
+            var response = await Http.GetAsync("http://localhost:5146/api/recording/active");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                activeSessions = JsonSerializer.Deserialize<List<RecordingSessionResponse>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+            else
+            {
+                errorMessage = "Failed to load active recording sessions";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading recording sessions: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ShowNewRecordingModal()
+    {
+        newRecordingRequest = new StartRecordingRequest();
+        showNewRecordingModal = true;
+    }
+
+    private void CloseNewRecordingModal()
+    {
+        showNewRecordingModal = false;
+        errorMessage = string.Empty;
+    }
+
+    private async Task StartRecording()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = string.Empty;
+
+            newRecordingRequest.Settings = new RecordingSettings
+            {
+                CaptureScreenshots = captureScreenshots
+            };
+
+            var json = JsonSerializer.Serialize(newRecordingRequest);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await Http.PostAsync("http://localhost:5146/api/recording/start", content);
+            if (response.IsSuccessStatusCode)
+            {
+                CloseNewRecordingModal();
+                await LoadActiveSessions();
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to start recording: {errorResponse}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error starting recording: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task PauseRecording(string sessionId)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"http://localhost:5146/api/recording/{sessionId}/pause", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadActiveSessions();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error pausing recording: {ex.Message}";
+        }
+    }
+
+    private async Task ResumeRecording(string sessionId)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"http://localhost:5146/api/recording/{sessionId}/resume", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadActiveSessions();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error resuming recording: {ex.Message}";
+        }
+    }
+
+    private async Task StopRecording(string sessionId)
+    {
+        try
+        {
+            var response = await Http.PostAsync($"http://localhost:5146/api/recording/{sessionId}/stop", null);
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadActiveSessions();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error stopping recording: {ex.Message}";
+        }
+    }
+
+    private void ShowSaveModal(string sessionId)
+    {
+        selectedSessionId = sessionId;
+        saveRequest = new SaveAsTestCaseRequest();
+        showSaveModal = true;
+    }
+
+    private void CloseSaveModal()
+    {
+        showSaveModal = false;
+        selectedSessionId = string.Empty;
+    }
+
+    private async Task SaveAsTestCase()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = string.Empty;
+
+            var json = JsonSerializer.Serialize(saveRequest);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await Http.PostAsync($"http://localhost:5146/api/recording/{selectedSessionId}/save", content);
+            if (response.IsSuccessStatusCode)
+            {
+                CloseSaveModal();
+                await LoadActiveSessions();
+                await JSRuntime.InvokeVoidAsync("alert", "Test case saved successfully!");
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Failed to save test case: {errorResponse}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving test case: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private string GetStatusBadgeClass(RecordingStatus status)
+    {
+        return status switch
+        {
+            RecordingStatus.Recording => "bg-danger",
+            RecordingStatus.Paused => "bg-warning",
+            RecordingStatus.Stopped => "bg-secondary",
+            RecordingStatus.Completed => "bg-success",
+            RecordingStatus.Error => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    // Models for this component
+    public class StartRecordingRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public string BaseUrl { get; set; } = string.Empty;
+        public RecordingSettings? Settings { get; set; }
+    }
+
+    public class RecordingSettings
+    {
+        public bool CaptureScreenshots { get; set; } = true;
+    }
+
+    public class SaveAsTestCaseRequest
+    {
+        public string TestCaseName { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+
+    public class RecordingSessionResponse
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string BaseUrl { get; set; } = string.Empty;
+        public RecordingStatus Status { get; set; }
+        public int StepCount { get; set; }
+        public DateTime StartedAt { get; set; }
+        public DateTime? EndedAt { get; set; }
+    }
+
+    public enum RecordingStatus
+    {
+        NotStarted,
+        Recording,
+        Paused,
+        Stopped,
+        Completed,
+        Error
+    }
+}
