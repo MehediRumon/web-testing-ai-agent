@@ -498,6 +498,13 @@ public class BrowserAutomationService : IBrowserAutomationService
         {
             Console.WriteLine("Starting Chrome driver...");
             
+            // Ensure DISPLAY environment variable is properly set for ChromeDriver
+            var display = Environment.GetEnvironmentVariable("DISPLAY");
+            if (!string.IsNullOrEmpty(display))
+            {
+                Console.WriteLine($"Using DISPLAY: {display}");
+            }
+            
             // Simplified ChromeDriver initialization with timeout
             var driverTask = Task.Run(async () => {
                 try
@@ -526,13 +533,13 @@ public class BrowserAutomationService : IBrowserAutomationService
                 }
             });
             
-            // Wait for driver creation with 25 second timeout
-            var timeoutTask = Task.Delay(25000);
+            // Wait for driver creation with 10 second timeout (reduced from 25)
+            var timeoutTask = Task.Delay(10000);
             var completedTask = await Task.WhenAny(driverTask, timeoutTask);
             
             if (completedTask == timeoutTask)
             {
-                throw new TimeoutException("ChromeDriver initialization timed out after 25 seconds");
+                throw new TimeoutException("ChromeDriver initialization timed out after 10 seconds");
             }
             
             var driver = await driverTask;
