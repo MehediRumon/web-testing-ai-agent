@@ -193,11 +193,36 @@ public class RecordingService : IRecordingService
         if (session.Steps.Count >= session.Settings.MaxSteps)
             throw new InvalidOperationException($"Maximum steps limit ({session.Settings.MaxSteps}) reached");
 
+        // Avoid duplicate steps based on action, element, and timestamp proximity (within 500ms)
+        var recentSteps = session.Steps.Where(s => 
+            DateTime.UtcNow - s.Timestamp < TimeSpan.FromMilliseconds(500) &&
+            s.Action == step.Action &&
+            s.ElementSelector == step.ElementSelector
+        ).ToList();
+        
+        if (recentSteps.Any())
+        {
+            // For input events, update the value instead of creating a new step
+            if (step.Action == "input" && recentSteps.Any())
+            {
+                var lastInputStep = recentSteps.Last();
+                lastInputStep.Value = step.Value;
+                lastInputStep.Timestamp = DateTime.UtcNow;
+                return lastInputStep;
+            }
+            // Skip duplicate non-input actions
+            else if (step.Action != "input")
+            {
+                return recentSteps.Last();
+            }
+        }
+
         step.Order = session.Steps.Count;
         step.Timestamp = DateTime.UtcNow;
         step.Id = Guid.NewGuid().ToString();
 
         session.Steps.Add(step);
+        Console.WriteLine($"Recording session {sessionId}: Added {step.Action} step ({session.Steps.Count} total steps)");
         return await Task.FromResult(step);
     }
 
@@ -205,6 +230,26 @@ public class RecordingService : IRecordingService
     {
         if (!_sessions.TryGetValue(sessionId, out var session))
             throw new ArgumentException($"Recording session {sessionId} not found");
+
+        // Collect any remaining captured interactions before saving
+        var browserSessionId = GetBrowserSessionId(session);
+        if (!string.IsNullOrEmpty(browserSessionId))
+        {
+            try
+            {
+                var capturedSteps = await _browserService.CollectCapturedInteractionsAsync(browserSessionId);
+                foreach (var step in capturedSteps)
+                {
+                    // Set the correct order for the step
+                    step.Order = session.Steps.Count;
+                    session.Steps.Add(step);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Failed to collect remaining interactions during save: {ex.Message}");
+            }
+        }
 
         var testCase = new TestCase
         {
@@ -237,6 +282,8 @@ public class RecordingService : IRecordingService
         // Mark session as completed
         session.Status = RecordingStatus.Completed;
         session.EndedAt = DateTime.UtcNow;
+
+        Console.WriteLine($"Recording saved as test case '{testCaseName}' with {testCase.Steps.Count} steps");
 
         return createdTestCase;
     }
@@ -372,13 +419,30 @@ public class BrowserAutomationService : IBrowserAutomationService
                 if (forceVisible)
                 {
                     Console.WriteLine("⚠️  Warning: No DISPLAY environment variable found, but forceVisible=true for recording.");
-                    Console.WriteLine("   Cannot run visible browser in headless environment. Falling back to headless mode.");
+                    Console.WriteLine("   Recording requires a visible browser for user interaction capture.");
+                    
+                    // Try to set up a virtual display for recording
+                    if (TrySetupVirtualDisplay())
+                    {
+                        Console.WriteLine("✅ Virtual display setup successful - browser will be visible for recording");
+                        useHeadless = false; // Use visible mode with virtual display
+                    }
+                    else
+                    {
+                        Console.WriteLine("   🔧 Solutions:");
+                        Console.WriteLine("   - Run on a desktop environment with GUI (recommended)");
+                        Console.WriteLine("   - Use X11 forwarding: ssh -X user@server");
+                        Console.WriteLine("   - Use VNC or remote desktop for headless servers");
+                        Console.WriteLine("   - Install Xvfb: apt-get install xvfb");
+                        Console.WriteLine("   ⚠️  Falling back to headless mode - recorded interactions may be limited.");
+                        useHeadless = true;
+                    }
                 }
                 else
                 {
                     Console.WriteLine("No DISPLAY environment variable found. Falling back to headless mode.");
+                    useHeadless = true;
                 }
-                useHeadless = true;
             }
         }
         
@@ -715,5 +779,63 @@ public class BrowserAutomationService : IBrowserAutomationService
         }
         
         await Task.CompletedTask;
+    }
+
+    private bool TrySetupVirtualDisplay()
+    {
+        try
+        {
+            // Check if Xvfb is available
+            var xvfbProcess = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "which",
+                    Arguments = "Xvfb",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    CreateNoWindow = true
+                }
+            };
+            
+            xvfbProcess.Start();
+            xvfbProcess.WaitForExit();
+            
+            if (xvfbProcess.ExitCode != 0)
+            {
+                Console.WriteLine("   Xvfb not available - install with: apt-get install xvfb");
+                return false;
+            }
+
+            // Start virtual display
+            var virtualDisplay = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "Xvfb",
+                    Arguments = ":99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                }
+            };
+
+            virtualDisplay.Start();
+            
+            // Wait a moment for the display to start
+            System.Threading.Thread.Sleep(2000);
+            
+            // Set the DISPLAY environment variable
+            Environment.SetEnvironmentVariable("DISPLAY", ":99");
+            
+            Console.WriteLine("   Virtual display started on :99");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"   Failed to setup virtual display: {ex.Message}");
+            return false;
+        }
     }
 }
