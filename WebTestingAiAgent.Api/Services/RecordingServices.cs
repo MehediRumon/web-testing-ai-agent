@@ -500,17 +500,13 @@ public class BrowserAutomationService : IBrowserAutomationService
             
             // Simplified ChromeDriver initialization with timeout
             var driverTask = Task.Run(async () => {
-                ChromeDriver? driver = null;
-                
                 try
                 {
-                    Console.WriteLine("Creating ChromeDriver with system path /usr/bin...");
-                    var service = ChromeDriverService.CreateDefaultService("/usr/bin");
-                    service.SuppressInitialDiagnosticInformation = true;
-                    service.HideCommandPromptWindow = true;
+                    Console.WriteLine("Creating ChromeDriver with auto-detected driver path...");
                     
-                    // Create driver with shortened initialization timeout
-                    driver = new ChromeDriver(service, options, TimeSpan.FromSeconds(20));
+                    // Use default ChromeDriver constructor - this will automatically find chromedriver
+                    // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
+                    var driver = new ChromeDriver(options);
                     Console.WriteLine("ChromeDriver created successfully.");
                     
                     // Set timeouts
@@ -522,7 +518,10 @@ public class BrowserAutomationService : IBrowserAutomationService
                 catch (Exception ex)
                 {
                     Console.WriteLine($"ChromeDriver creation failed: {ex.Message}");
-                    driver?.Quit();
+                    Console.WriteLine($"Common solutions:");
+                    Console.WriteLine($"  1. Ensure Google Chrome is installed");
+                    Console.WriteLine($"  2. ChromeDriver version matches Chrome version");
+                    Console.WriteLine($"  3. ChromeDriver is in PATH or use Selenium.WebDriver.ChromeDriver package");
                     throw;
                 }
             });
