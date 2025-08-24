@@ -505,44 +505,41 @@ public class BrowserAutomationService : IBrowserAutomationService
                 Console.WriteLine($"Using DISPLAY: {display}");
             }
             
-            // Simplified ChromeDriver initialization with timeout
-            var driverTask = Task.Run(async () => {
+            // Use system ChromeDriver for better compatibility
+            Console.WriteLine("Creating ChromeDriver with system driver...");
+            IWebDriver driver;
+            try
+            {
+                // Try to use system ChromeDriver first
+                var service = ChromeDriverService.CreateDefaultService("/usr/bin");
+                service.HideCommandPromptWindow = true;
+                driver = new ChromeDriver(service, options);
+                Console.WriteLine("ChromeDriver created successfully using system driver.");
+            }
+            catch (Exception systemEx)
+            {
+                Console.WriteLine($"System ChromeDriver failed: {systemEx.Message}");
+                Console.WriteLine("Falling back to package ChromeDriver...");
                 try
                 {
-                    Console.WriteLine("Creating ChromeDriver with auto-detected driver path...");
-                    
-                    // Use default ChromeDriver constructor - this will automatically find chromedriver
-                    // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
-                    var driver = new ChromeDriver(options);
-                    Console.WriteLine("ChromeDriver created successfully.");
-                    
-                    // Set timeouts
-                    driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromMilliseconds(settings.TimeoutMs);
-                    driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10); // Shorter page load timeout
-                    
-                    return driver;
+                    // Fallback to package ChromeDriver
+                    driver = new ChromeDriver(options);
+                    Console.WriteLine("ChromeDriver created successfully using package driver.");
                 }
-                catch (Exception ex)
+                catch (Exception packageEx)
                 {
-                    Console.WriteLine($"ChromeDriver creation failed: {ex.Message}");
-                    Console.WriteLine($"Common solutions:");
+                    Console.WriteLine($"Package ChromeDriver also failed: {packageEx.Message}");
+                    Console.WriteLine($"Solutions:");
                     Console.WriteLine($"  1. Ensure Google Chrome is installed");
-                    Console.WriteLine($"  2. ChromeDriver version matches Chrome version");
-                    Console.WriteLine($"  3. ChromeDriver is in PATH or use Selenium.WebDriver.ChromeDriver package");
-                    throw;
+                    Console.WriteLine($"  2. Ensure ChromeDriver is in PATH (/usr/bin/chromedriver)");
+                    Console.WriteLine($"  3. Check ChromeDriver version matches Chrome version");
+                    throw new InvalidOperationException($"ChromeDriver initialization failed. System error: {systemEx.Message}, Package error: {packageEx.Message}");
                 }
-            });
-            
-            // Wait for driver creation with 10 second timeout (reduced from 25)
-            var timeoutTask = Task.Delay(10000);
-            var completedTask = await Task.WhenAny(driverTask, timeoutTask);
-            
-            if (completedTask == timeoutTask)
-            {
-                throw new TimeoutException("ChromeDriver initialization timed out after 10 seconds");
             }
             
-            var driver = await driverTask;
+            // Set timeouts
+            driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromMilliseconds(settings.TimeoutMs);
+            driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10); // Shorter page load timeout
             Console.WriteLine("Chrome driver started successfully.");
             
             _browserSessions[sessionId] = driver;
