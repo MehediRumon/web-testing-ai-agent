@@ -420,8 +420,9 @@ public class BrowserAutomationService : IBrowserAutomationService
             
             // Use a timeout for ChromeDriver initialization
             var driverTask = Task.Run(() => {
-                // Try to use system chromedriver or specify path
-                var driver = new ChromeDriver("/usr/bin", options);
+                // Use default ChromeDriver service - this will automatically find chromedriver
+                // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
+                var driver = new ChromeDriver(options);
                 return driver;
             });
             
