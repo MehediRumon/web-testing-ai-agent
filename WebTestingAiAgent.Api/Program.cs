@@ -1,6 +1,8 @@
 using WebTestingAiAgent.Core.Interfaces;
 using WebTestingAiAgent.Core.Models;
 using WebTestingAiAgent.Api.Services;
+using WebTestingAiAgent.Api.Data;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +10,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Add Entity Framework with SQLite
+builder.Services.AddDbContext<WebTestingDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") 
+        ?? "Data Source=webtesting.db"));
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -39,6 +46,13 @@ builder.Services.AddScoped<IRecordingService, RecordingService>();
 builder.Services.AddScoped<ITestExecutionService, TestExecutionService>();
 
 var app = builder.Build();
+
+// Ensure database is created
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<WebTestingDbContext>();
+    context.Database.EnsureCreated();
+}
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
