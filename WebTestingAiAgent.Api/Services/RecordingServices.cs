@@ -40,9 +40,10 @@ public class RecordingService : IRecordingService
             new ExecutionSettings 
             { 
                 Browser = "chrome", 
-                Headless = false, // Recording needs visible browser
+                Headless = session.Settings.Headless, // Use headless setting from recording settings
                 TimeoutMs = session.Settings.TimeoutMs 
-            });
+            },
+            session.Settings.ForceVisible); // Pass force visible flag
 
         // Store browser session ID in metadata
         session.Steps.Add(new RecordedStep
@@ -351,7 +352,7 @@ public class BrowserAutomationService : IBrowserAutomationService
     private readonly ConcurrentDictionary<string, IWebDriver> _browserSessions = new();
     private readonly ConcurrentDictionary<string, BrowserInteractionCapture> _interactionCaptures = new();
 
-    public async Task<string> StartBrowserSessionAsync(string baseUrl, ExecutionSettings settings)
+    public async Task<string> StartBrowserSessionAsync(string baseUrl, ExecutionSettings settings, bool forceVisible = false)
     {
         var sessionId = Guid.NewGuid().ToString();
         
@@ -364,19 +365,44 @@ public class BrowserAutomationService : IBrowserAutomationService
             var display = Environment.GetEnvironmentVariable("DISPLAY");
             if (string.IsNullOrEmpty(display))
             {
-                Console.WriteLine("No DISPLAY environment variable found. Falling back to headless mode for recording.");
-                useHeadless = true;
+                if (forceVisible)
+                {
+                    Console.WriteLine("⚠️  Warning: No DISPLAY environment variable found, but forceVisible=true for recording.");
+                    Console.WriteLine("   Attempting to run visible browser anyway. This may fail in headless environments.");
+                    // Continue with visible browser even without DISPLAY for recording purposes
+                }
+                else
+                {
+                    Console.WriteLine("No DISPLAY environment variable found. Falling back to headless mode.");
+                    useHeadless = true;
+                }
             }
         }
         
         if (useHeadless)
         {
             options.AddArgument("--headless");
+            Console.WriteLine("Running browser in headless mode");
         }
+        else
+        {
+            Console.WriteLine("Running browser in visible mode for interaction recording");
+            // Add options to improve the visible browser experience for recording
+            options.AddArgument("--window-size=1280,720");
+            options.AddArgument("--start-maximized");
+        }
+        
+        // Standard Chrome options for automation
         options.AddArgument("--no-sandbox");
         options.AddArgument("--disable-dev-shm-usage");
-        options.AddArgument("--disable-gpu");
-        options.AddArgument("--disable-software-rasterizer");
+        
+        // Only disable GPU in headless mode to maintain visual quality in visible mode
+        if (useHeadless)
+        {
+            options.AddArgument("--disable-gpu");
+            options.AddArgument("--disable-software-rasterizer");
+        }
+        
         options.AddArgument("--disable-background-timer-throttling");
         options.AddArgument("--disable-backgrounding-occluded-windows");
         options.AddArgument("--disable-renderer-backgrounding");
@@ -394,7 +420,8 @@ public class BrowserAutomationService : IBrowserAutomationService
             
             // Use a timeout for ChromeDriver initialization
             var driverTask = Task.Run(() => {
-                var driver = new ChromeDriver(options);
+                // Try to use system chromedriver or specify path
+                var driver = new ChromeDriver("/usr/bin", options);
                 return driver;
             });
             
