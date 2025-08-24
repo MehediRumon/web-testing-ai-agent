@@ -456,7 +456,8 @@ public class BrowserAutomationService : IBrowserAutomationService
             Console.WriteLine("Running browser in visible mode for interaction recording");
             // Add options to improve the visible browser experience for recording
             options.AddArgument("--window-size=1280,720");
-            options.AddArgument("--start-maximized");
+            // Remove --start-maximized as it can cause issues in virtual display environments
+            options.AddArgument("--window-position=0,0");
         }
         
         // Standard Chrome options for automation
@@ -490,109 +491,93 @@ public class BrowserAutomationService : IBrowserAutomationService
         options.AddArgument("--disable-web-security");
         options.AddArgument("--no-first-run");
         options.AddArgument("--no-default-browser-check");
-        options.AddArgument("--remote-debugging-port=9222");
+        // Use a unique remote debugging port to avoid conflicts
+        options.AddArgument($"--remote-debugging-port={9222 + new Random().Next(100, 999)}");
 
         try
         {
             Console.WriteLine("Starting Chrome driver...");
             
-            // Use a timeout for ChromeDriver initialization
-            var driverTask = Task.Run(() => {
+            // Simplified ChromeDriver initialization with timeout
+            var driverTask = Task.Run(async () => {
                 ChromeDriver? driver = null;
-                Exception? lastException = null;
                 
-                // Try multiple ChromeDriver locations in order of preference
-                var driverPaths = new[]
+                try
                 {
-                    "/usr/bin", // System ChromeDriver that we verified works
-                    "", // Default package location
-                };
-                
-                foreach (var driverPath in driverPaths)
-                {
-                    try
-                    {
-                        if (string.IsNullOrEmpty(driverPath))
-                        {
-                            Console.WriteLine("Trying ChromeDriver with default package location...");
-                            driver = new ChromeDriver(options);
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Trying ChromeDriver with explicit path: {driverPath}");
-                            var service = ChromeDriverService.CreateDefaultService(driverPath);
-                            service.SuppressInitialDiagnosticInformation = true;
-                            service.HideCommandPromptWindow = true;
-                            driver = new ChromeDriver(service, options);
-                        }
-                        Console.WriteLine("ChromeDriver created successfully.");
-                        return driver;
-                    }
-                    catch (Exception ex)
-                    {
-                        lastException = ex;
-                        Console.WriteLine($"ChromeDriver creation failed with path '{driverPath}': {ex.Message}");
-                        driver?.Quit();
-                        driver = null;
-                    }
+                    Console.WriteLine("Creating ChromeDriver with system path /usr/bin...");
+                    var service = ChromeDriverService.CreateDefaultService("/usr/bin");
+                    service.SuppressInitialDiagnosticInformation = true;
+                    service.HideCommandPromptWindow = true;
+                    
+                    // Create driver with shortened initialization timeout
+                    driver = new ChromeDriver(service, options, TimeSpan.FromSeconds(20));
+                    Console.WriteLine("ChromeDriver created successfully.");
+                    
+                    // Set timeouts
+                    driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromMilliseconds(settings.TimeoutMs);
+                    driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(10); // Shorter page load timeout
+                    
+                    return driver;
                 }
-                
-                Console.WriteLine($"All ChromeDriver initialization attempts failed. Last error: {lastException?.Message}");
-                throw lastException ?? new InvalidOperationException("Failed to initialize ChromeDriver");
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"ChromeDriver creation failed: {ex.Message}");
+                    driver?.Quit();
+                    throw;
+                }
             });
             
-            if (await Task.WhenAny(driverTask, Task.Delay(30000)) == driverTask)
+            // Wait for driver creation with 25 second timeout
+            var timeoutTask = Task.Delay(25000);
+            var completedTask = await Task.WhenAny(driverTask, timeoutTask);
+            
+            if (completedTask == timeoutTask)
             {
-                var driver = await driverTask;
-                Console.WriteLine("Chrome driver started successfully.");
-                
-                driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromMilliseconds(settings.TimeoutMs);
-                driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(30);
-                
-                _browserSessions[sessionId] = driver;
-                
-                Console.WriteLine($"Navigating to: {baseUrl}");
-                // Navigate to base URL - handle network errors gracefully for testing
-                try
-                {
-                    driver.Navigate().GoToUrl(baseUrl);
-                    Console.WriteLine("Navigation completed successfully.");
-                }
-                catch (WebDriverException navEx) when (navEx.Message.Contains("ERR_NAME_NOT_RESOLVED") || 
-                                                      navEx.Message.Contains("ERR_CONNECTION_REFUSED") ||
-                                                      navEx.Message.Contains("ERR_NETWORK_ACCESS_DENIED"))
-                {
-                    Console.WriteLine($"Navigation failed due to network restrictions: {navEx.Message}");
-                    Console.WriteLine("Continuing with session creation - browser is ready for interaction capture.");
-                    // Continue with session creation even if navigation fails due to network restrictions
-                }
-                
-                // Set up interaction capture
-                var interactionCapture = new BrowserInteractionCapture();
-                _interactionCaptures[sessionId] = interactionCapture;
-                
-                // Inject the capturing script after navigation - handle errors gracefully
-                await Task.Delay(1000); // Wait for page to load
-                Console.WriteLine("Injecting capture script...");
-                try
-                {
-                    interactionCapture.InjectCapturingScript(driver);
-                    interactionCapture.StartCapturing();
-                    Console.WriteLine("Capture script injected successfully.");
-                }
-                catch (Exception jsEx)
-                {
-                    Console.WriteLine($"Warning: Failed to inject capture script: {jsEx.Message}");
-                    Console.WriteLine("Session created but interaction capture may not work until a valid page is loaded.");
-                }
-                Console.WriteLine("Recording session started successfully.");
-                
-                return await Task.FromResult(sessionId);
+                throw new TimeoutException("ChromeDriver initialization timed out after 25 seconds");
             }
-            else
+            
+            var driver = await driverTask;
+            Console.WriteLine("Chrome driver started successfully.");
+            
+            _browserSessions[sessionId] = driver;
+            
+            Console.WriteLine($"Navigating to: {baseUrl}");
+            // Navigate to base URL - handle network errors gracefully for testing
+            try
             {
-                throw new TimeoutException("ChromeDriver initialization timed out after 30 seconds");
+                driver.Navigate().GoToUrl(baseUrl);
+                Console.WriteLine("Navigation completed successfully.");
             }
+            catch (WebDriverException navEx) when (navEx.Message.Contains("ERR_NAME_NOT_RESOLVED") || 
+                                                  navEx.Message.Contains("ERR_CONNECTION_REFUSED") ||
+                                                  navEx.Message.Contains("ERR_NETWORK_ACCESS_DENIED"))
+            {
+                Console.WriteLine($"Navigation failed due to network restrictions: {navEx.Message}");
+                Console.WriteLine("Continuing with session creation - browser is ready for interaction capture.");
+                // Continue with session creation even if navigation fails due to network restrictions
+            }
+            
+            // Set up interaction capture
+            var interactionCapture = new BrowserInteractionCapture();
+            _interactionCaptures[sessionId] = interactionCapture;
+            
+            // Inject the capturing script after navigation - handle errors gracefully
+            await Task.Delay(1000); // Wait for page to load
+            Console.WriteLine("Injecting capture script...");
+            try
+            {
+                interactionCapture.InjectCapturingScript(driver);
+                interactionCapture.StartCapturing();
+                Console.WriteLine("Capture script injected successfully.");
+            }
+            catch (Exception jsEx)
+            {
+                Console.WriteLine($"Warning: Failed to inject capture script: {jsEx.Message}");
+                Console.WriteLine("Session created but interaction capture may not work until a valid page is loaded.");
+            }
+            Console.WriteLine("Recording session started successfully.");
+            
+            return sessionId;
         }
         catch (Exception ex)
         {
