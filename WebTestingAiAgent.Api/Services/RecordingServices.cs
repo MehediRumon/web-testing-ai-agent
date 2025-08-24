@@ -356,31 +356,86 @@ public class BrowserAutomationService : IBrowserAutomationService
         var sessionId = Guid.NewGuid().ToString();
         
         var options = new ChromeOptions();
-        if (settings.Headless)
+        bool useHeadless = settings.Headless;
+        
+        // Check if display is available for non-headless mode
+        if (!useHeadless)
+        {
+            var display = Environment.GetEnvironmentVariable("DISPLAY");
+            if (string.IsNullOrEmpty(display))
+            {
+                Console.WriteLine("No DISPLAY environment variable found. Falling back to headless mode for recording.");
+                useHeadless = true;
+            }
+        }
+        
+        if (useHeadless)
         {
             options.AddArgument("--headless");
         }
         options.AddArgument("--no-sandbox");
         options.AddArgument("--disable-dev-shm-usage");
+        options.AddArgument("--disable-gpu");
+        options.AddArgument("--disable-software-rasterizer");
+        options.AddArgument("--disable-background-timer-throttling");
+        options.AddArgument("--disable-backgrounding-occluded-windows");
+        options.AddArgument("--disable-renderer-backgrounding");
+        options.AddArgument("--disable-extensions");
+        options.AddArgument("--disable-plugins");
+        options.AddArgument("--disable-default-apps");
+        options.AddArgument("--disable-web-security");
+        options.AddArgument("--no-first-run");
+        options.AddArgument("--no-default-browser-check");
+        options.AddArgument("--remote-debugging-port=9222");
 
-        var driver = new ChromeDriver(options);
-        driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromMilliseconds(settings.TimeoutMs);
-        
-        _browserSessions[sessionId] = driver;
-        
-        // Navigate to base URL
-        driver.Navigate().GoToUrl(baseUrl);
-        
-        // Set up interaction capture
-        var interactionCapture = new BrowserInteractionCapture();
-        _interactionCaptures[sessionId] = interactionCapture;
-        
-        // Inject the capturing script after navigation
-        await Task.Delay(1000); // Wait for page to load
-        interactionCapture.InjectCapturingScript(driver);
-        interactionCapture.StartCapturing();
-        
-        return await Task.FromResult(sessionId);
+        try
+        {
+            Console.WriteLine("Starting Chrome driver...");
+            
+            // Use a timeout for ChromeDriver initialization
+            var driverTask = Task.Run(() => {
+                var driver = new ChromeDriver(options);
+                return driver;
+            });
+            
+            if (await Task.WhenAny(driverTask, Task.Delay(10000)) == driverTask)
+            {
+                var driver = await driverTask;
+                Console.WriteLine("Chrome driver started successfully.");
+                
+                driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromMilliseconds(settings.TimeoutMs);
+                driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(30);
+                
+                _browserSessions[sessionId] = driver;
+                
+                Console.WriteLine($"Navigating to: {baseUrl}");
+                // Navigate to base URL
+                driver.Navigate().GoToUrl(baseUrl);
+                Console.WriteLine("Navigation completed.");
+                
+                // Set up interaction capture
+                var interactionCapture = new BrowserInteractionCapture();
+                _interactionCaptures[sessionId] = interactionCapture;
+                
+                // Inject the capturing script after navigation
+                await Task.Delay(1000); // Wait for page to load
+                Console.WriteLine("Injecting capture script...");
+                interactionCapture.InjectCapturingScript(driver);
+                interactionCapture.StartCapturing();
+                Console.WriteLine("Recording session started successfully.");
+                
+                return await Task.FromResult(sessionId);
+            }
+            else
+            {
+                throw new TimeoutException("ChromeDriver initialization timed out after 10 seconds");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to start browser session: {ex.Message}");
+            throw new InvalidOperationException($"Failed to start browser session: {ex.Message}", ex);
+        }
     }
 
     public async Task StopBrowserSessionAsync(string sessionId)

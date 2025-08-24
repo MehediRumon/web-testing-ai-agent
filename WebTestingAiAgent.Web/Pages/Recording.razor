@@ -304,6 +304,8 @@
             var response = await Http.PostAsync("http://localhost:5146/api/recording/start", content);
             if (response.IsSuccessStatusCode)
             {
+                // Show success message before closing modal
+                await JSRuntime.InvokeVoidAsync("alert", "Recording started successfully! Browser session is active.");
                 CloseNewRecordingModal();
                 await LoadActiveSessions();
             }
