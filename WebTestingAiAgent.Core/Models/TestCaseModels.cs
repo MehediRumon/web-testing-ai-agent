@@ -52,6 +52,8 @@ public class RecordingSettings
     public int TimeoutMs { get; set; } = 30000;
     public int MaxRecordingMinutes { get; set; } = 60;
     public bool AutoExecuteAfterRecording { get; set; } = false;
+    public bool Headless { get; set; } = false; // Recording should show browser by default for user interaction
+    public bool ForceVisible { get; set; } = true; // Force visible browser even without DISPLAY environment
 }
 
 public class TestExecution
@@ -70,7 +72,7 @@ public class TestExecution
 public class ExecutionSettings
 {
     public string Browser { get; set; } = "chrome";
-    public bool Headless { get; set; } = true;
+    public bool Headless { get; set; } = false; // Changed to false for better recording experience
     public int TimeoutMs { get; set; } = 30000;
     public bool CaptureScreenshots { get; set; } = true;
     public bool StopOnError { get; set; } = true;
