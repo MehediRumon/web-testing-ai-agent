@@ -434,23 +434,47 @@ public class BrowserAutomationService : IBrowserAutomationService
             
             // Use a timeout for ChromeDriver initialization
             var driverTask = Task.Run(() => {
-                try
+                ChromeDriver? driver = null;
+                Exception? lastException = null;
+                
+                // Try multiple ChromeDriver locations in order of preference
+                var driverPaths = new[]
                 {
-                    // Create ChromeDriverService and specify the path explicitly
-                    var service = ChromeDriverService.CreateDefaultService("/usr/bin");
-                    service.SuppressInitialDiagnosticInformation = true;
-                    service.HideCommandPromptWindow = true;
-                    
-                    Console.WriteLine("Creating ChromeDriver with explicit service...");
-                    var driver = new ChromeDriver(service, options, TimeSpan.FromSeconds(30));
-                    Console.WriteLine("ChromeDriver created successfully.");
-                    return driver;
-                }
-                catch (Exception ex)
+                    "/usr/bin", // System ChromeDriver that we verified works
+                    "", // Default package location
+                };
+                
+                foreach (var driverPath in driverPaths)
                 {
-                    Console.WriteLine($"Error creating ChromeDriver: {ex.Message}");
-                    throw;
+                    try
+                    {
+                        if (string.IsNullOrEmpty(driverPath))
+                        {
+                            Console.WriteLine("Trying ChromeDriver with default package location...");
+                            driver = new ChromeDriver(options);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Trying ChromeDriver with explicit path: {driverPath}");
+                            var service = ChromeDriverService.CreateDefaultService(driverPath);
+                            service.SuppressInitialDiagnosticInformation = true;
+                            service.HideCommandPromptWindow = true;
+                            driver = new ChromeDriver(service, options);
+                        }
+                        Console.WriteLine("ChromeDriver created successfully.");
+                        return driver;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastException = ex;
+                        Console.WriteLine($"ChromeDriver creation failed with path '{driverPath}': {ex.Message}");
+                        driver?.Quit();
+                        driver = null;
+                    }
                 }
+                
+                Console.WriteLine($"All ChromeDriver initialization attempts failed. Last error: {lastException?.Message}");
+                throw lastException ?? new InvalidOperationException("Failed to initialize ChromeDriver");
             });
             
             if (await Task.WhenAny(driverTask, Task.Delay(30000)) == driverTask)
