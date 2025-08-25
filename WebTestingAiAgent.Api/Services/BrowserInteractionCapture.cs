@@ -44,8 +44,10 @@ public class BrowserInteractionCapture
         window.webTestingCapture = window.webTestingCapture || {
             events: [],
             isCapturing: true,
+            lastInputValue: {},  // Track last input value per element
+            inputTimeout: {},    // Track input timeouts per element
             
-            captureEvent: function(eventType, element, value) {
+            captureEvent: function(eventType, element, value, url) {
                 if (!this.isCapturing) return;
                 
                 var selector = this.getSelector(element);
@@ -53,7 +55,7 @@ public class BrowserInteractionCapture
                     action: eventType,
                     elementSelector: selector,
                     value: value || '',
-                    url: window.location.href,
+                    url: url || window.location.href,
                     timestamp: new Date().toISOString(),
                     metadata: {
                         tagName: element.tagName,
@@ -64,7 +66,37 @@ public class BrowserInteractionCapture
                         placeholder: element.placeholder || ''
                     }
                 };
-                this.events.push(event);
+                
+                // Special handling for input events to reduce noise
+                if (eventType === 'input') {
+                    var elementKey = selector + '_' + element.type;
+                    
+                    // Clear previous timeout for this element
+                    if (this.inputTimeout[elementKey]) {
+                        clearTimeout(this.inputTimeout[elementKey]);
+                    }
+                    
+                    // Store the current value
+                    this.lastInputValue[elementKey] = value;
+                    
+                    // Set a timeout to capture the final value after user stops typing
+                    this.inputTimeout[elementKey] = setTimeout(function() {
+                        var finalEvent = {
+                            action: 'input',
+                            elementSelector: selector,
+                            value: window.webTestingCapture.lastInputValue[elementKey],
+                            url: window.location.href,
+                            timestamp: new Date().toISOString(),
+                            metadata: event.metadata
+                        };
+                        window.webTestingCapture.events.push(finalEvent);
+                        delete window.webTestingCapture.lastInputValue[elementKey];
+                        delete window.webTestingCapture.inputTimeout[elementKey];
+                    }, 500); // Wait 500ms after user stops typing
+                } else {
+                    // For non-input events, add immediately
+                    this.events.push(event);
+                }
             },
             
             getSelector: function(element) {
@@ -104,21 +136,61 @@ public class BrowserInteractionCapture
             }
         };
 
-        // Add event listeners
+        // Add event listeners with improved input handling
         document.addEventListener('click', function(e) {
             if (e.target) {
                 window.webTestingCapture.captureEvent('click', e.target);
             }
         }, true);
 
+        // Improved input handling - capture on input events but debounce
         document.addEventListener('input', function(e) {
-            if (e.target && (e.target.type === 'text' || e.target.type === 'email' || e.target.type === 'password' || e.target.tagName === 'TEXTAREA')) {
+            if (e.target && (e.target.type === 'text' || e.target.type === 'email' || 
+                           e.target.type === 'password' || e.target.type === 'search' ||
+                           e.target.type === 'tel' || e.target.type === 'url' ||
+                           e.target.tagName === 'TEXTAREA')) {
                 window.webTestingCapture.captureEvent('input', e.target, e.target.value);
             }
         }, true);
 
+        // Also capture on blur to ensure we get final values
+        document.addEventListener('blur', function(e) {
+            if (e.target && (e.target.type === 'text' || e.target.type === 'email' || 
+                           e.target.type === 'password' || e.target.type === 'search' ||
+                           e.target.type === 'tel' || e.target.type === 'url' ||
+                           e.target.tagName === 'TEXTAREA')) {
+                // Force capture final input value immediately on blur
+                var selector = window.webTestingCapture.getSelector(e.target);
+                var elementKey = selector + '_' + e.target.type;
+                
+                if (window.webTestingCapture.inputTimeout[elementKey]) {
+                    clearTimeout(window.webTestingCapture.inputTimeout[elementKey]);
+                    delete window.webTestingCapture.inputTimeout[elementKey];
+                }
+                
+                var finalEvent = {
+                    action: 'input',
+                    elementSelector: selector,
+                    value: e.target.value,
+                    url: window.location.href,
+                    timestamp: new Date().toISOString(),
+                    metadata: {
+                        tagName: e.target.tagName,
+                        type: e.target.type || '',
+                        id: e.target.id || '',
+                        className: e.target.className || '',
+                        name: e.target.name || '',
+                        placeholder: e.target.placeholder || ''
+                    }
+                };
+                window.webTestingCapture.events.push(finalEvent);
+                delete window.webTestingCapture.lastInputValue[elementKey];
+            }
+        }, true);
+
         document.addEventListener('change', function(e) {
-            if (e.target && (e.target.type === 'select-one' || e.target.type === 'select-multiple' || e.target.type === 'checkbox' || e.target.type === 'radio')) {
+            if (e.target && (e.target.type === 'select-one' || e.target.type === 'select-multiple' || 
+                           e.target.type === 'checkbox' || e.target.type === 'radio')) {
                 var value = e.target.type === 'checkbox' || e.target.type === 'radio' ? e.target.checked : e.target.value;
                 window.webTestingCapture.captureEvent('select', e.target, value);
             }

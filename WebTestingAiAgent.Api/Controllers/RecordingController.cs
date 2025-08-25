@@ -196,6 +196,28 @@ public class RecordingController : ControllerBase
     }
 
     /// <summary>
+    /// Get live steps from a recording session
+    /// </summary>
+    [HttpGet("{sessionId}/steps")]
+    public async Task<ActionResult<List<RecordedStep>>> GetRecordingSteps(string sessionId)
+    {
+        try
+        {
+            var session = await _recordingService.GetRecordingSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { message = $"Recording session {sessionId} not found" });
+
+            // Return only the actual recorded steps (excluding session_start)
+            var steps = session.Steps.Where(s => s.Action != "session_start").ToList();
+            return Ok(steps);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error retrieving recording steps", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Delete a recording session
     /// </summary>
     [HttpDelete("{sessionId}")]
