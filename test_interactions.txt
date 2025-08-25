@@ -1,0 +1,9 @@
+#2 CLICK #UserName /Account/Login 08:20:12
+#3 INPUT #UserName "rumon" /Account/Login 08:20:17
+#4 INPUT #UserName "rumon." /Account/Login 08:20:20
+#5 INPUT #UserName "rumon.onno" /Account/Login 08:20:25
+#6 INPUT #UserName "rumon.onnorokom" /Account/Login 08:20:30
+#7 INPUT #UserName "rumon.onnorokom@gmail.com" /Account/Login 08:20:38
+#8 CLICK div.panel-body /Account/Login 08:20:37
+#9 CLICK #Password /Account/Login 08:20:45
+#10 INPUT #Password "Mrumon4726" /Account/Login 08:20:52

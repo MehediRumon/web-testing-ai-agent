@@ -22,6 +22,8 @@ class Program
         var recordStartCommand = new Command("start", "Start recording");
         var recordStopCommand = new Command("stop", "Stop recording");
         var recordSaveCommand = new Command("save", "Save recording as test case");
+        var recordImportCommand = new Command("import-interactions", "Import interactions from text file");
+        var recordValidateCommand = new Command("validate-interactions", "Validate interaction text format");
 
         // Execution commands
         var runCommand = new Command("run", "Execute test cases");
@@ -47,6 +49,21 @@ class Program
         // Add options for record start command
         var recordNameOption = new Option<string>("--name", "Recording session name") { IsRequired = true };
         var recordUrlOption = new Option<string>("--url", "Base URL to start recording") { IsRequired = true };
+
+        // Add options for record import command
+        var importFileOption = new Option<string>("--file", "Path to interaction text file") { IsRequired = true };
+        var importSessionNameOption = new Option<string>("--name", "Name for the recording session") { IsRequired = true };
+        var importBaseUrlOption = new Option<string>("--base-url", "Base URL for the test");
+        var importOutputOption = new Option<string>("--out", "Output file for the recording session JSON");
+
+        recordImportCommand.AddOption(importFileOption);
+        recordImportCommand.AddOption(importSessionNameOption);
+        recordImportCommand.AddOption(importBaseUrlOption);
+        recordImportCommand.AddOption(importOutputOption);
+
+        // Add options for validate command
+        var validateFileOption = new Option<string>("--file", "Path to interaction text file") { IsRequired = true };
+        recordValidateCommand.AddOption(validateFileOption);
 
         recordStartCommand.AddOption(recordNameOption);
         recordStartCommand.AddOption(recordUrlOption);
@@ -75,6 +92,16 @@ class Program
         {
             await StartRecordingAsync(name, url);
         }, recordNameOption, recordUrlOption);
+
+        recordImportCommand.SetHandler(async (file, name, baseUrl, output) =>
+        {
+            await ImportInteractionsAsync(file, name, baseUrl, output);
+        }, importFileOption, importSessionNameOption, importBaseUrlOption, importOutputOption);
+
+        recordValidateCommand.SetHandler(async (file) =>
+        {
+            await ValidateInteractionsAsync(file);
+        }, validateFileOption);
 
         executeCommand.SetHandler(async (id, browser, headless) =>
         {
@@ -105,6 +132,8 @@ class Program
         recordingCommand.AddCommand(recordStartCommand);
         recordingCommand.AddCommand(recordStopCommand);
         recordingCommand.AddCommand(recordSaveCommand);
+        recordingCommand.AddCommand(recordImportCommand);
+        recordingCommand.AddCommand(recordValidateCommand);
 
         var executionCommand = new Command("execution", "Test execution management");
         executionCommand.AddCommand(executeCommand);
@@ -232,6 +261,132 @@ class Program
         catch (Exception ex)
         {
             Console.WriteLine($"✗ Error creating plan: {ex.Message}");
+        }
+    }
+
+    private static async Task ImportInteractionsAsync(string filePath, string sessionName, string? baseUrl, string? outputFile)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine($"✗ File not found: {filePath}");
+                return;
+            }
+
+            var interactionText = await File.ReadAllTextAsync(filePath);
+            Console.WriteLine($"📄 Reading interactions from: {filePath}");
+            Console.WriteLine($"📝 Session name: {sessionName}");
+
+            // Call the API to import interactions
+            using var client = new HttpClient();
+            var request = new
+            {
+                sessionName = sessionName,
+                baseUrl = baseUrl ?? "https://example.com",
+                interactionText = interactionText
+            };
+
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await client.PostAsync("http://localhost:5146/api/recording/import", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseJson = await response.Content.ReadAsStringAsync();
+                
+                if (!string.IsNullOrEmpty(outputFile))
+                {
+                    await File.WriteAllTextAsync(outputFile, responseJson);
+                    Console.WriteLine($"✓ Recording session imported and saved to: {outputFile}");
+                }
+                else
+                {
+                    Console.WriteLine("✓ Recording session imported successfully:");
+                    
+                    // Parse and display summary
+                    var sessionData = JsonSerializer.Deserialize<JsonElement>(responseJson);
+                    if (sessionData.TryGetProperty("id", out var idElement) &&
+                        sessionData.TryGetProperty("steps", out var stepsElement))
+                    {
+                        Console.WriteLine($"   Session ID: {idElement.GetString()}");
+                        Console.WriteLine($"   Steps imported: {stepsElement.GetArrayLength()}");
+                    }
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"✗ Error importing interactions: {response.StatusCode}");
+                Console.WriteLine($"   {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ Error importing interactions: {ex.Message}");
+            Console.WriteLine("   Make sure the API server is running: cd WebTestingAiAgent.Api && dotnet run");
+        }
+    }
+
+    private static async Task ValidateInteractionsAsync(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                Console.WriteLine($"✗ File not found: {filePath}");
+                return;
+            }
+
+            var interactionText = await File.ReadAllTextAsync(filePath);
+            Console.WriteLine($"🔍 Validating interactions from: {filePath}");
+
+            // Call the API to validate interactions
+            using var client = new HttpClient();
+            var request = new { interactionText = interactionText };
+            var json = JsonSerializer.Serialize(request);
+            var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+            var response = await client.PostAsync("http://localhost:5146/api/recording/validate", content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseJson = await response.Content.ReadAsStringAsync();
+                var validationResult = JsonSerializer.Deserialize<JsonElement>(responseJson);
+                
+                if (validationResult.TryGetProperty("isValid", out var isValidElement) &&
+                    validationResult.TryGetProperty("message", out var messageElement))
+                {
+                    var isValid = isValidElement.GetBoolean();
+                    var message = messageElement.GetString();
+                    
+                    if (isValid)
+                    {
+                        Console.WriteLine($"✓ {message}");
+                        
+                        if (validationResult.TryGetProperty("stepCount", out var stepCountElement))
+                        {
+                            Console.WriteLine($"   📊 Total steps: {stepCountElement.GetInt32()}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"✗ {message}");
+                    }
+                }
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"✗ Error validating interactions: {response.StatusCode}");
+                Console.WriteLine($"   {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"✗ Error validating interactions: {ex.Message}");
+            Console.WriteLine("   Make sure the API server is running: cd WebTestingAiAgent.Api && dotnet run");
         }
     }
 

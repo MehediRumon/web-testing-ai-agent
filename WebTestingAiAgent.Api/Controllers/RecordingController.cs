@@ -9,10 +9,12 @@ namespace WebTestingAiAgent.Api.Controllers;
 public class RecordingController : ControllerBase
 {
     private readonly IRecordingService _recordingService;
+    private readonly IInteractionParserService _parserService;
 
-    public RecordingController(IRecordingService recordingService)
+    public RecordingController(IRecordingService recordingService, IInteractionParserService parserService)
     {
         _recordingService = recordingService;
+        _parserService = parserService;
     }
 
     /// <summary>
@@ -277,10 +279,112 @@ public class RecordingController : ControllerBase
             return StatusCode(500, new { message = "Error deleting recording session", error = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Import interaction sequence from text format
+    /// </summary>
+    [HttpPost("import")]
+    public async Task<ActionResult<RecordingSession>> ImportInteractions([FromBody] ImportInteractionsRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Validate the interaction text format
+            var isValid = await _parserService.ValidateInteractionsAsync(request.InteractionText);
+            if (!isValid)
+                return BadRequest(new { message = "Invalid interaction format. Please check the format and try again." });
+
+            // Create recording session from parsed interactions
+            var session = await _parserService.CreateRecordingSessionFromInteractionsAsync(
+                request.InteractionText, 
+                request.SessionName, 
+                request.BaseUrl);
+
+            // Save the session using the recording service
+            // First create a temporary recording request to initialize the session
+            var tempRequest = new StartRecordingRequest
+            {
+                Name = session.Name,
+                BaseUrl = session.BaseUrl,
+                Settings = session.Settings
+            };
+
+            // Since we can't directly add sessions to RecordingService, 
+            // we'll return the parsed session directly
+            return Ok(session);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error importing interactions", error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Validate interaction text format
+    /// </summary>
+    [HttpPost("validate")]
+    public async Task<ActionResult<ValidationResult>> ValidateInteractions([FromBody] ValidateInteractionsRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.InteractionText))
+                return BadRequest(new { message = "Interaction text is required" });
+
+            var isValid = await _parserService.ValidateInteractionsAsync(request.InteractionText);
+            var result = new ValidationResult
+            {
+                IsValid = isValid,
+                Message = isValid ? "Interaction format is valid" : "Invalid interaction format"
+            };
+
+            if (isValid)
+            {
+                // Try to parse and provide step count
+                try
+                {
+                    var steps = await _parserService.ParseInteractionsAsync(request.InteractionText);
+                    result.StepCount = steps.Count;
+                    result.Message = $"Valid interaction format with {steps.Count} steps";
+                }
+                catch (Exception ex)
+                {
+                    result.IsValid = false;
+                    result.Message = $"Parsing error: {ex.Message}";
+                }
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error validating interactions", error = ex.Message });
+        }
+    }
 }
 
 public class SaveAsTestCaseRequest
 {
     public string TestCaseName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+}
+
+public class ImportInteractionsRequest
+{
+    public string SessionName { get; set; } = string.Empty;
+    public string BaseUrl { get; set; } = string.Empty;
+    public string InteractionText { get; set; } = string.Empty;
+}
+
+public class ValidateInteractionsRequest
+{
+    public string InteractionText { get; set; } = string.Empty;
+}
+
+public class ValidationResult
+{
+    public bool IsValid { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public int StepCount { get; set; }
 }
