@@ -1,28 +1,32 @@
 # Browser Recording Setup Guide
 
-This guide helps you set up visible browser recording for the Web Testing AI Agent to capture user interactions during test case creation.
+This guide helps you set up browser recording for the Web Testing AI Agent to capture user interactions during test case creation.
 
 ## 🎯 Overview
 
-The Web Testing AI Agent now supports **visible browser recording** where:
-- Browser opens visibly for user interaction capture
+The Web Testing AI Agent now runs browsers **exclusively in visible mode** where:
+- Browser always opens visibly for user interaction capture
 - All user interactions (clicks, typing, form submissions) are automatically captured
 - Test cases can be saved and replayed later
-- Graceful fallback to headless mode if visible mode fails
+- **No headless fallback** - system requires a local display environment
 
-## ✅ Quick Setup (Desktop Environment)
+## ✅ Setup (Desktop Environment Required)
 
-If you're running on a desktop environment with GUI support:
+**Important**: The system now **requires a local display** and desktop environment:
 
 ```bash
 # 1. Ensure Chrome is installed
 google-chrome --version
 
-# 2. Start the API
+# 2. Verify display is available
+echo $DISPLAY
+# Should show display number (e.g., :0, :1, localhost:10.0)
+
+# 3. Start the API
 cd WebTestingAiAgent.Api
 dotnet run
 
-# 3. Create a recording session (browser will open visibly)
+# 4. Create a recording session (browser will open visibly)
 curl -X POST http://localhost:5146/api/recording/start \
   -H "Content-Type: application/json" \
   -d '{
@@ -30,19 +34,14 @@ curl -X POST http://localhost:5146/api/recording/start \
     "baseUrl": "https://example.com",
     "settings": {
       "headless": false,
-      "forceVisible": true,
       "timeoutMs": 30000
     }
   }'
 ```
 
-## 🖥️ Server/Headless Environment Setup
+## 🖥️ Remote Server Setup
 
-**Important**: As of the latest update, the system **prioritizes local displays** over virtual displays. When `forceVisible=true` is used and no local display is available, the system will automatically attempt to set up a virtual display (Xvfb) to honor the visible browser request.
-
-For server environments without GUI (VPS, CI/CD, Docker), you have these options:
-
-### Option 1: Using Real Display (Recommended)
+For remote server environments, use X11 forwarding:
 
 ```bash
 # Use X11 forwarding (SSH)
@@ -52,51 +51,11 @@ ssh -X user@your-server
 echo $DISPLAY
 # Should show something like localhost:10.0
 
-# Now run recording - will use real forwarded display
+# Test X11 connection
+xeyes  # Should open a window if X11 is working
+
+# Now run recording - will use forwarded display
 ```
-
-### Option 2: Using Virtual Display 
-
-**Updated Behavior**: Virtual displays are now automatically attempted when `forceVisible=true` and no local display is available. You can also explicitly enable virtual display usage.
-
-```bash
-# Install Xvfb
-sudo apt-get update
-sudo apt-get install xvfb
-
-# Option A: Automatic virtual display (when forceVisible=true)
-curl -X POST http://localhost:5146/api/recording/start \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My Test Recording",
-    "baseUrl": "https://example.com",
-    "settings": {
-      "headless": false,
-      "forceVisible": true,
-      "timeoutMs": 30000
-    }
-  }'
-
-# Option B: Explicit virtual display
-curl -X POST http://localhost:5146/api/recording/start \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My Test Recording", 
-    "baseUrl": "https://example.com",
-    "settings": {
-      "headless": false,
-      "forceVisible": true,
-      "useVirtualDisplay": true,
-      "timeoutMs": 30000
-    }
-  }'
-```
-
-### Option 3: Using VNC/Remote Desktop
-
-1. Install VNC server on your server
-2. Connect via VNC client
-3. Run the application within the VNC session
 
 ## 🐳 Docker Environment Setup
 
@@ -150,7 +109,6 @@ services:
 ```json
 {
   "browserInitTimeoutMs": 30000,  // Browser startup timeout
-  "headless": false,              // Default mode
   "captureScreenshots": true,     // Enable screenshots
   "timeoutMs": 30000             // General timeout
 }
@@ -163,23 +121,28 @@ services:
 **Symptom**: "ChromeDriver initialization timed out"
 
 **Solutions**:
-1. **Install Xvfb**: `sudo apt-get install xvfb`
-2. **Check Chrome installation**: `google-chrome --version`
-3. **Verify DISPLAY**: `echo $DISPLAY`
-4. **Try headless fallback**: Set `"headless": true` in settings
+1. **Check Chrome installation**: `google-chrome --version`
+2. **Verify DISPLAY**: `echo $DISPLAY` (must show display number)
+3. **Run on desktop environment**: Ensure GUI is available
+4. **Check X11 forwarding**: If using SSH, ensure `-X` flag is used
 
 ### No Display Available
 
-**Symptom**: "No DISPLAY environment variable found"
+**Symptom**: "No DISPLAY environment variable found" or browser fails to start
 
-**New Behavior**: The system now prioritizes real displays over virtual displays.
+**Solutions**:
+1. **Desktop Environment**: Run on a machine with GUI (required)
+2. **X11 Forwarding**: Use `ssh -X` to connect to server with display forwarding
+3. **Test X11**: Try running `xeyes` to verify X11 is working
 
-**Solutions** (in order of preference):
-1. **Desktop Environment**: Run on a machine with GUI (recommended)
-2. **X11 Forwarding**: Use `ssh -X` to connect to server
-3. **VNC/RDP**: Set up remote desktop access  
-4. **Virtual Display**: Set `"useVirtualDisplay": true` in recording settings
-5. **Headless Mode**: Use `"headless": true` for automated execution
+### Browser Not Opening Visibly
+
+**Symptom**: No browser window appears
+
+**Solutions**:
+1. **Verify DISPLAY**: `echo $DISPLAY`
+2. **Check window manager**: Ensure a window manager is running
+3. **Test with simple browser**: Try `google-chrome --version` or `chromium-browser --version`
 
 ### Recording Not Capturing Interactions
 
