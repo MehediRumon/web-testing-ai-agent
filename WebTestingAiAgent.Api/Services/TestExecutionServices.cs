@@ -163,6 +163,12 @@ public class TestExecutionService : ITestExecutionService
                     var stepResult = await _browserService.ExecuteStepAsync(browserSessionId, recordedStep);
                     execution.StepResults.Add(stepResult);
 
+                    // Small delay between steps to allow UI to settle
+                    if (stepResult.Status == "passed")
+                    {
+                        await Task.Delay(500); // 500ms delay between successful steps
+                    }
+
                     // Take screenshot if configured and step failed
                     if (execution.Settings.CaptureScreenshots && stepResult.Status == "failed")
                     {

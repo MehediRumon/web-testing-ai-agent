@@ -171,9 +171,31 @@ public class BrowserInteractionCapture
             },
             
             getEvents: function() {
-                var events = this.events.slice();
-                this.events = [];
-                return events;
+                // Only return events that are not pending debounced input events
+                var readyEvents = [];
+                var remainingEvents = [];
+                var now = new Date().getTime();
+                
+                for (var i = 0; i < this.events.length; i++) {
+                    var event = this.events[i];
+                    // For input events, check if they have a pending timeout
+                    if (event.action === 'input') {
+                        var elementKey = event.elementSelector + '_' + (event.metadata ? event.metadata.type || '' : '');
+                        // If there's an active timeout for this element, keep the event for later
+                        if (this.inputTimeout[elementKey]) {
+                            remainingEvents.push(event);
+                        } else {
+                            readyEvents.push(event);
+                        }
+                    } else {
+                        // Non-input events are always ready
+                        readyEvents.push(event);
+                    }
+                }
+                
+                // Update events array to only contain events that aren't ready yet
+                this.events = remainingEvents;
+                return readyEvents;
             }
         };
 
