@@ -53,11 +53,11 @@ public class BrowserInteractionCapture
         var now = DateTime.UtcNow;
         foreach (var evt in tempEvents)
         {
-            // For input events, only include if they've aged past debounce period (600ms to be safe)
+            // For input events, only include if they've aged past debounce period (400ms to be safe)
             if (evt.Action.ToLower() == "input")
             {
                 var age = now - evt.Timestamp;
-                if (age.TotalMilliseconds >= 600)
+                if (age.TotalMilliseconds >= 400)
                 {
                     events.Add(evt);
                 }
@@ -88,6 +88,32 @@ public class BrowserInteractionCapture
             lastInputValue: {},  // Track last input value per element
             inputTimeout: {},    // Track input timeouts per element
             
+            finalizePendingInputs: function() {
+                // Immediately finalize all pending input captures
+                for (var elementKey in this.inputTimeout) {
+                    if (this.inputTimeout[elementKey]) {
+                        clearTimeout(this.inputTimeout[elementKey]);
+                        
+                        // Capture the final value immediately
+                        if (this.lastInputValue[elementKey] !== undefined) {
+                            var parts = elementKey.split('_');
+                            var selector = parts.slice(0, -1).join('_');
+                            var finalEvent = {
+                                action: 'input',
+                                elementSelector: selector,
+                                value: this.lastInputValue[elementKey],
+                                url: window.location.href,
+                                timestamp: new Date().toISOString(),
+                                metadata: { triggered: 'interaction_finalization' }
+                            };
+                            this.events.push(finalEvent);
+                            delete this.lastInputValue[elementKey];
+                        }
+                        delete this.inputTimeout[elementKey];
+                    }
+                }
+            },
+
             captureEvent: function(eventType, element, value, url) {
                 if (!this.isCapturing) return;
                 
@@ -126,6 +152,7 @@ public class BrowserInteractionCapture
                     this.lastInputValue[elementKey] = value;
                     
                     // Set a timeout to capture the final value after user stops typing
+                    // Reduced from 500ms to 300ms for faster response
                     this.inputTimeout[elementKey] = setTimeout(function() {
                         var finalEvent = {
                             action: 'input',
@@ -138,9 +165,12 @@ public class BrowserInteractionCapture
                         window.webTestingCapture.events.push(finalEvent);
                         delete window.webTestingCapture.lastInputValue[elementKey];
                         delete window.webTestingCapture.inputTimeout[elementKey];
-                    }, 500); // Wait 500ms after user stops typing
+                    }, 300); // Reduced wait time for faster response
                 } else {
-                    // For non-input events, add immediately
+                    // For non-input events, immediately finalize any pending inputs first
+                    this.finalizePendingInputs();
+                    
+                    // Then add the current event
                     this.events.push(event);
                 }
             },
@@ -207,6 +237,8 @@ public class BrowserInteractionCapture
         // Add event listeners with improved input handling
         document.addEventListener('click', function(e) {
             if (e.target) {
+                // Finalize any pending inputs before capturing click
+                window.webTestingCapture.finalizePendingInputs();
                 window.webTestingCapture.captureEvent('click', e.target);
             }
         }, true);
@@ -256,6 +288,17 @@ public class BrowserInteractionCapture
             }
         }, true);
 
+        // Capture key events that indicate user is moving away from input fields
+        document.addEventListener('keydown', function(e) {
+            // Tab, Enter, Escape keys often indicate user is done with current input
+            if (e.key === 'Tab' || e.key === 'Enter' || e.key === 'Escape') {
+                // Small delay to allow the key action to complete, then finalize inputs
+                setTimeout(function() {
+                    window.webTestingCapture.finalizePendingInputs();
+                }, 50);
+            }
+        }, true);
+
         // Capture on focus change to any non-input element to finalize pending inputs
         document.addEventListener('focusin', function(e) {
             if (e.target && !(e.target.type === 'text' || e.target.type === 'email' || 
@@ -263,34 +306,15 @@ public class BrowserInteractionCapture
                            e.target.type === 'tel' || e.target.type === 'url' ||
                            e.target.tagName === 'TEXTAREA')) {
                 // User focused on a non-input element, finalize any pending input captures
-                for (var elementKey in window.webTestingCapture.inputTimeout) {
-                    if (window.webTestingCapture.inputTimeout[elementKey]) {
-                        clearTimeout(window.webTestingCapture.inputTimeout[elementKey]);
-                        
-                        // Capture the final value immediately
-                        if (window.webTestingCapture.lastInputValue[elementKey] !== undefined) {
-                            var parts = elementKey.split('_');
-                            var selector = parts.slice(0, -1).join('_');
-                            var finalEvent = {
-                                action: 'input',
-                                elementSelector: selector,
-                                value: window.webTestingCapture.lastInputValue[elementKey],
-                                url: window.location.href,
-                                timestamp: new Date().toISOString(),
-                                metadata: { triggered: 'focus_change' }
-                            };
-                            window.webTestingCapture.events.push(finalEvent);
-                            delete window.webTestingCapture.lastInputValue[elementKey];
-                        }
-                        delete window.webTestingCapture.inputTimeout[elementKey];
-                    }
-                }
+                window.webTestingCapture.finalizePendingInputs();
             }
         }, true);
 
         document.addEventListener('change', function(e) {
             if (e.target && (e.target.type === 'select-one' || e.target.type === 'select-multiple' || 
                            e.target.type === 'checkbox' || e.target.type === 'radio')) {
+                // Finalize any pending inputs before capturing change
+                window.webTestingCapture.finalizePendingInputs();
                 var value = e.target.type === 'checkbox' || e.target.type === 'radio' ? e.target.checked : e.target.value;
                 window.webTestingCapture.captureEvent('select', e.target, value);
             }
@@ -298,6 +322,8 @@ public class BrowserInteractionCapture
 
         document.addEventListener('submit', function(e) {
             if (e.target && e.target.tagName === 'FORM') {
+                // Finalize any pending inputs before capturing submit
+                window.webTestingCapture.finalizePendingInputs();
                 window.webTestingCapture.captureEvent('submit', e.target);
             }
         }, true);
