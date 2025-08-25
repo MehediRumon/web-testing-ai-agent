@@ -40,6 +40,9 @@ public class InteractionParserService : IInteractionParserService
             }
         }
 
+        // Consolidate multiple INPUT actions on the same element, keeping only the final value
+        steps = ConsolidateInputActions(steps);
+
         return steps;
     }
 
@@ -182,6 +185,47 @@ public class InteractionParserService : IInteractionParserService
         };
 
         return await Task.FromResult(session);
+    }
+
+    /// <summary>
+    /// Consolidate multiple INPUT actions on the same element, keeping only the final value
+    /// </summary>
+    private List<RecordedStep> ConsolidateInputActions(List<RecordedStep> steps)
+    {
+        var consolidatedSteps = new List<RecordedStep>();
+        var inputGroups = new Dictionary<string, List<RecordedStep>>();
+
+        // Group INPUT actions by element selector
+        foreach (var step in steps)
+        {
+            if (step.Action.ToLower() == "input" && !string.IsNullOrEmpty(step.ElementSelector))
+            {
+                var key = step.ElementSelector.ToLower();
+                if (!inputGroups.ContainsKey(key))
+                    inputGroups[key] = new List<RecordedStep>();
+                
+                inputGroups[key].Add(step);
+            }
+            else
+            {
+                // Non-input actions are always included
+                consolidatedSteps.Add(step);
+            }
+        }
+
+        // For each input group, keep only the final (last) input action
+        foreach (var group in inputGroups.Values)
+        {
+            if (group.Any())
+            {
+                // Sort by order (step number) and take the last one
+                var finalInput = group.OrderBy(s => s.Order).Last();
+                consolidatedSteps.Add(finalInput);
+            }
+        }
+
+        // Sort the consolidated steps by their original order
+        return consolidatedSteps.OrderBy(s => s.Order).ToList();
     }
 
     /// <summary>
