@@ -213,11 +213,12 @@ public class RecordingService : IRecordingService
         switch (step.Action.ToLower())
         {
             case "input":
-                // For input events, look for recent input on the same element within 1 second
+                // For input events, look for recent input on the same element within 5 seconds for live steps
+                // This longer window helps consolidate input during extended typing sessions
                 existingStep = session.Steps
                     .Where(s => s.Action == "input" && 
                                s.ElementSelector == step.ElementSelector &&
-                               DateTime.UtcNow - s.Timestamp < TimeSpan.FromSeconds(1))
+                               DateTime.UtcNow - s.Timestamp < TimeSpan.FromSeconds(5))
                     .LastOrDefault();
                 
                 if (existingStep != null)
@@ -473,13 +474,45 @@ public class RecordingService : IRecordingService
                 var capturedSteps = await _browserService.CollectCapturedInteractionsAsync(browserSessionId);
                 
                 // Filter out any steps that are already in the session to avoid duplicates
-                var newSteps = capturedSteps.Where(captured => 
-                    !allSteps.Any(existing => 
-                        existing.Action == captured.Action &&
-                        existing.ElementSelector == captured.ElementSelector &&
-                        existing.Value == captured.Value &&
-                        Math.Abs((existing.Timestamp - captured.Timestamp).TotalMilliseconds) < 1000)
-                ).ToList();
+                // For input events, be more aggressive about filtering to show only the latest value per element
+                var newSteps = new List<RecordedStep>();
+                
+                foreach (var captured in capturedSteps)
+                {
+                    if (captured.Action.ToLower() == "input")
+                    {
+                        // For input events, check if there's already a recent input for the same element
+                        var hasRecentInput = allSteps.Any(existing => 
+                            existing.Action.ToLower() == "input" &&
+                            existing.ElementSelector == captured.ElementSelector &&
+                            Math.Abs((existing.Timestamp - captured.Timestamp).TotalMilliseconds) < 5000); // 5 second window for input consolidation
+                        
+                        if (!hasRecentInput)
+                        {
+                            // Also remove any older input events for the same element from allSteps to ensure only latest is shown
+                            allSteps.RemoveAll(existing =>
+                                existing.Action.ToLower() == "input" &&
+                                existing.ElementSelector == captured.ElementSelector &&
+                                existing.Timestamp < captured.Timestamp);
+                            
+                            newSteps.Add(captured);
+                        }
+                    }
+                    else
+                    {
+                        // For non-input events, use the original duplicate detection logic
+                        var isDuplicate = allSteps.Any(existing => 
+                            existing.Action == captured.Action &&
+                            existing.ElementSelector == captured.ElementSelector &&
+                            existing.Value == captured.Value &&
+                            Math.Abs((existing.Timestamp - captured.Timestamp).TotalMilliseconds) < 1000);
+                        
+                        if (!isDuplicate)
+                        {
+                            newSteps.Add(captured);
+                        }
+                    }
+                }
 
                 // Add the new steps to our result
                 allSteps.AddRange(newSteps);
