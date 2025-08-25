@@ -90,8 +90,26 @@ curl -X POST http://localhost:5146/api/recording/start \
   }'
 ```
 
-**Server Environment with Virtual Display:**
+**Server Environment (Automatic Virtual Display):**
 ```bash
+# Virtual display is now automatically set up when forceVisible=true
+curl -X POST http://localhost:5146/api/recording/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "User Login Flow",
+    "baseUrl": "https://example.com/login",
+    "settings": {
+      "headless": false,
+      "forceVisible": true,
+      "captureScreenshots": true,
+      "maxSteps": 50
+    }
+  }'
+```
+
+**Server Environment (Explicit Virtual Display):**
+```bash
+# You can still explicitly enable virtual display if needed
 curl -X POST http://localhost:5146/api/recording/start \
   -H "Content-Type: application/json" \
   -d '{
