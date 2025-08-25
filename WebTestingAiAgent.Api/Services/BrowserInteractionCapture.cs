@@ -117,6 +117,11 @@ public class BrowserInteractionCapture
                         clearTimeout(this.inputTimeout[elementKey]);
                     }
                     
+                    // Remove any existing pending input events for this element from the events array
+                    this.events = this.events.filter(function(existingEvent) {
+                        return !(existingEvent.action === 'input' && existingEvent.elementSelector === selector);
+                    });
+                    
                     // Store the current value
                     this.lastInputValue[elementKey] = value;
                     
