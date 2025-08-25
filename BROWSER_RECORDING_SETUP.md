@@ -38,7 +38,7 @@ curl -X POST http://localhost:5146/api/recording/start \
 
 ## 🖥️ Server/Headless Environment Setup
 
-**Important**: As of the latest update, the system **prioritizes local displays** over virtual displays. Virtual displays are only used when explicitly requested.
+**Important**: As of the latest update, the system **prioritizes local displays** over virtual displays. When `forceVisible=true` is used and no local display is available, the system will automatically attempt to set up a virtual display (Xvfb) to honor the visible browser request.
 
 For server environments without GUI (VPS, CI/CD, Docker), you have these options:
 
@@ -55,20 +55,33 @@ echo $DISPLAY
 # Now run recording - will use real forwarded display
 ```
 
-### Option 2: Using Virtual Display (Explicit)
+### Option 2: Using Virtual Display 
 
-**Note**: You must now explicitly enable virtual display usage.
+**Updated Behavior**: Virtual displays are now automatically attempted when `forceVisible=true` and no local display is available. You can also explicitly enable virtual display usage.
 
 ```bash
 # Install Xvfb
 sudo apt-get update
 sudo apt-get install xvfb
 
-# Create recording with virtual display enabled
+# Option A: Automatic virtual display (when forceVisible=true)
 curl -X POST http://localhost:5146/api/recording/start \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Test Recording",
+    "baseUrl": "https://example.com",
+    "settings": {
+      "headless": false,
+      "forceVisible": true,
+      "timeoutMs": 30000
+    }
+  }'
+
+# Option B: Explicit virtual display
+curl -X POST http://localhost:5146/api/recording/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Test Recording", 
     "baseUrl": "https://example.com",
     "settings": {
       "headless": false,
