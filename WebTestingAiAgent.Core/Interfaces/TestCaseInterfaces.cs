@@ -51,7 +51,7 @@ public interface ITestExecutionService
 /// </summary>
 public interface IBrowserAutomationService
 {
-    Task<string> StartBrowserSessionAsync(string baseUrl, ExecutionSettings settings, bool forceVisible = false);
+    Task<string> StartBrowserSessionAsync(string baseUrl, ExecutionSettings settings, bool forceVisible = false, bool useVirtualDisplay = false);
     Task StopBrowserSessionAsync(string sessionId);
     Task<RecordedStep> CaptureInteractionAsync(string sessionId, string eventType, Dictionary<string, object> eventData);
     Task<StepResult> ExecuteStepAsync(string sessionId, RecordedStep step);

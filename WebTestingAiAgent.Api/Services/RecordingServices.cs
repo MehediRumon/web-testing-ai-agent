@@ -44,7 +44,8 @@ public class RecordingService : IRecordingService
                 TimeoutMs = session.Settings.TimeoutMs,
                 BrowserInitTimeoutMs = 30000 // Extended timeout for recording sessions
             },
-            session.Settings.ForceVisible); // Pass force visible flag
+            session.Settings.ForceVisible, // Pass force visible flag
+            session.Settings.UseVirtualDisplay); // Pass virtual display setting
 
         // Store browser session ID in metadata
         session.Steps.Add(new RecordedStep
@@ -404,7 +405,7 @@ public class BrowserAutomationService : IBrowserAutomationService
     private readonly ConcurrentDictionary<string, IWebDriver> _browserSessions = new();
     private readonly ConcurrentDictionary<string, BrowserInteractionCapture> _interactionCaptures = new();
 
-    public async Task<string> StartBrowserSessionAsync(string baseUrl, ExecutionSettings settings, bool forceVisible = false)
+    public async Task<string> StartBrowserSessionAsync(string baseUrl, ExecutionSettings settings, bool forceVisible = false, bool useVirtualDisplay = false)
     {
         var sessionId = Guid.NewGuid().ToString();
         
@@ -414,7 +415,7 @@ public class BrowserAutomationService : IBrowserAutomationService
             try
             {
                 Console.WriteLine("🎬 Attempting to start browser in visible mode for recording...");
-                var visibleDriver = await TryStartBrowserAsync(sessionId, baseUrl, settings, false, forceVisible);
+                var visibleDriver = await TryStartBrowserAsync(sessionId, baseUrl, settings, false, forceVisible, useVirtualDisplay);
                 if (visibleDriver != null)
                 {
                     return sessionId;
@@ -429,7 +430,7 @@ public class BrowserAutomationService : IBrowserAutomationService
         
         // Fallback: Try headless mode
         Console.WriteLine("🤖 Starting browser in headless mode...");
-        var headlessDriver = await TryStartBrowserAsync(sessionId, baseUrl, settings, true, false);
+        var headlessDriver = await TryStartBrowserAsync(sessionId, baseUrl, settings, true, false, false);
         if (headlessDriver != null)
         {
             Console.WriteLine("✅ Browser started successfully in headless mode");
@@ -440,7 +441,7 @@ public class BrowserAutomationService : IBrowserAutomationService
         throw new InvalidOperationException("Failed to start browser in both visible and headless modes");
     }
     
-    private async Task<IWebDriver?> TryStartBrowserAsync(string sessionId, string baseUrl, ExecutionSettings settings, bool forceHeadless, bool forceVisible)
+    private async Task<IWebDriver?> TryStartBrowserAsync(string sessionId, string baseUrl, ExecutionSettings settings, bool forceHeadless, bool forceVisible, bool useVirtualDisplay = false)
     {
         var options = new ChromeOptions();
         bool useHeadless = forceHeadless || settings.Headless;
@@ -456,21 +457,33 @@ public class BrowserAutomationService : IBrowserAutomationService
                     Console.WriteLine("⚠️  Warning: No DISPLAY environment variable found, but forceVisible=true for recording.");
                     Console.WriteLine("   Recording requires a visible browser for user interaction capture.");
                     
-                    // Try to set up a virtual display for recording
-                    if (TrySetupVirtualDisplay())
+                    // Only try to set up virtual display if explicitly enabled
+                    if (useVirtualDisplay)
                     {
-                        Console.WriteLine("✅ Virtual display setup successful - browser will be visible for recording");
-                        useHeadless = false; // Use visible mode with virtual display
+                        Console.WriteLine("   Attempting to setup virtual display (Xvfb) as requested...");
+                        if (TrySetupVirtualDisplay())
+                        {
+                            Console.WriteLine("✅ Virtual display setup successful - browser will be visible for recording");
+                            useHeadless = false; // Use visible mode with virtual display
+                        }
+                        else
+                        {
+                            Console.WriteLine("   ❌ Virtual display setup failed.");
+                            Console.WriteLine("   🔧 Solutions:");
+                            Console.WriteLine("   - Install Xvfb: apt-get install xvfb");
+                            Console.WriteLine("   - Use alternative virtual display solutions");
+                            Console.WriteLine("   ⚠️  Will try headless fallback if visible mode fails.");
+                            return null;
+                        }
                     }
                     else
                     {
-                        Console.WriteLine("   🔧 Solutions:");
+                        Console.WriteLine("   🔧 To use a visible browser, please:");
                         Console.WriteLine("   - Run on a desktop environment with GUI (recommended)");
                         Console.WriteLine("   - Use X11 forwarding: ssh -X user@server");
                         Console.WriteLine("   - Use VNC or remote desktop for headless servers");
-                        Console.WriteLine("   - Install Xvfb: apt-get install xvfb");
-                        Console.WriteLine("   ⚠️  Will try headless fallback if visible mode fails.");
-                        // Don't force headless here - let the caller handle fallback
+                        Console.WriteLine("   - Set useVirtualDisplay=true to enable Xvfb virtual display");
+                        Console.WriteLine("   ⚠️  Returning null - will try headless fallback.");
                         return null;
                     }
                 }
