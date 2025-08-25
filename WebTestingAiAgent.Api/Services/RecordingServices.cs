@@ -454,6 +454,45 @@ public class RecordingService : IRecordingService
             Console.WriteLine($"Error auto-executing recording {session.Id}: {ex.Message}");
         }
     }
+
+    public async Task<List<RecordedStep>> GetLiveStepsAsync(string sessionId)
+    {
+        if (!_sessions.TryGetValue(sessionId, out var session))
+            throw new ArgumentException($"Recording session {sessionId} not found");
+
+        // Start with existing recorded steps (excluding session_start)
+        var allSteps = session.Steps.Where(s => s.Action != "session_start").ToList();
+
+        // Get browser session ID to collect any pending captured interactions
+        var browserSessionId = GetBrowserSessionId(session);
+        if (!string.IsNullOrEmpty(browserSessionId))
+        {
+            try
+            {
+                // Collect ready captured interactions that haven't been added to session yet
+                var capturedSteps = await _browserService.CollectCapturedInteractionsAsync(browserSessionId);
+                
+                // Filter out any steps that are already in the session to avoid duplicates
+                var newSteps = capturedSteps.Where(captured => 
+                    !allSteps.Any(existing => 
+                        existing.Action == captured.Action &&
+                        existing.ElementSelector == captured.ElementSelector &&
+                        existing.Value == captured.Value &&
+                        Math.Abs((existing.Timestamp - captured.Timestamp).TotalMilliseconds) < 1000)
+                ).ToList();
+
+                // Add the new steps to our result
+                allSteps.AddRange(newSteps);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Could not collect captured interactions for session {sessionId}: {ex.Message}");
+            }
+        }
+
+        // Sort by timestamp to maintain chronological order
+        return allSteps.OrderBy(s => s.Timestamp).ThenBy(s => s.Order).ToList();
+    }
 }
 
 public class BrowserAutomationService : IBrowserAutomationService
@@ -660,80 +699,168 @@ public class BrowserAutomationService : IBrowserAutomationService
             Status = "running"
         };
 
+        Console.WriteLine($"Executing step: {step.Action} on {step.ElementSelector} with value '{step.Value}'");
+
         try
         {
+            // Validate step before execution
+            if (string.IsNullOrEmpty(step.Action))
+            {
+                throw new ArgumentException("Step action cannot be null or empty");
+            }
+
             switch (step.Action.ToLower())
             {
                 case "click":
-                    if (!string.IsNullOrEmpty(step.ElementSelector))
+                    if (string.IsNullOrEmpty(step.ElementSelector))
                     {
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
-                        var element = wait.Until(driver => driver.FindElement(By.CssSelector(step.ElementSelector)));
-                        
-                        // Ensure element is clickable
-                        wait.Until(driver => element.Enabled && element.Displayed);
-                        element.Click();
-                        
-                        // Small delay after click to allow any navigation or updates
-                        await Task.Delay(200);
+                        throw new ArgumentException("ElementSelector is required for click action");
                     }
+                    
+                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
+                    var element = wait.Until(driver => driver.FindElement(By.CssSelector(step.ElementSelector)));
+                    
+                    // Ensure element is clickable
+                    wait.Until(driver => element.Enabled && element.Displayed);
+                    element.Click();
+                    
+                    // Small delay after click to allow any navigation or updates
+                    await Task.Delay(200);
+                    Console.WriteLine($"Successfully clicked element: {step.ElementSelector}");
                     break;
 
                 case "input":
-                    if (!string.IsNullOrEmpty(step.ElementSelector) && !string.IsNullOrEmpty(step.Value))
+                    if (string.IsNullOrEmpty(step.ElementSelector))
                     {
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
-                        var element = wait.Until(driver => driver.FindElement(By.CssSelector(step.ElementSelector)));
-                        
-                        // Ensure element is interactable
-                        wait.Until(driver => element.Enabled && element.Displayed);
-                        element.Clear();
-                        element.SendKeys(step.Value);
-                        
-                        // Small delay after input
-                        await Task.Delay(200);
+                        throw new ArgumentException("ElementSelector is required for input action");
                     }
+                    if (string.IsNullOrEmpty(step.Value))
+                    {
+                        Console.WriteLine($"Warning: Input value is empty for element {step.ElementSelector}");
+                    }
+                    
+                    var inputWait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
+                    var inputElement = inputWait.Until(driver => driver.FindElement(By.CssSelector(step.ElementSelector)));
+                    
+                    // Ensure element is interactable
+                    inputWait.Until(driver => inputElement.Enabled && inputElement.Displayed);
+                    inputElement.Clear();
+                    if (!string.IsNullOrEmpty(step.Value))
+                    {
+                        inputElement.SendKeys(step.Value);
+                    }
+                    
+                    // Small delay after input
+                    await Task.Delay(200);
+                    Console.WriteLine($"Successfully input value '{step.Value}' to element: {step.ElementSelector}");
                     break;
 
                 case "select":
                     if (!string.IsNullOrEmpty(step.ElementSelector) && !string.IsNullOrEmpty(step.Value))
                     {
-                        var element = driver.FindElement(By.CssSelector(step.ElementSelector));
-                        var select = new SelectElement(element);
-                        select.SelectByText(step.Value);
+                        var selectWait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
+                        var selectElement = selectWait.Until(driver => driver.FindElement(By.CssSelector(step.ElementSelector)));
+                        
+                        // Ensure element is interactable
+                        selectWait.Until(driver => selectElement.Enabled && selectElement.Displayed);
+                        var select = new SelectElement(selectElement);
+                        
+                        try
+                        {
+                            // Try selecting by visible text first
+                            select.SelectByText(step.Value);
+                        }
+                        catch (NoSuchElementException)
+                        {
+                            // If that fails, try by value
+                            try
+                            {
+                                select.SelectByValue(step.Value);
+                            }
+                            catch (NoSuchElementException)
+                            {
+                                // If that also fails, try partial text match
+                                var options = select.Options;
+                                var matchingOption = options.FirstOrDefault(o => 
+                                    o.Text.Contains(step.Value, StringComparison.OrdinalIgnoreCase) ||
+                                    o.GetAttribute("value").Contains(step.Value, StringComparison.OrdinalIgnoreCase));
+                                
+                                if (matchingOption != null)
+                                {
+                                    matchingOption.Click();
+                                }
+                                else
+                                {
+                                    throw new NoSuchElementException($"Could not find option with text or value '{step.Value}' in select element {step.ElementSelector}");
+                                }
+                            }
+                        }
+                        
+                        // Small delay after selection
+                        await Task.Delay(200);
+                        Console.WriteLine($"Successfully selected '{step.Value}' in element: {step.ElementSelector}");
                     }
                     break;
 
                 case "navigate":
-                    if (!string.IsNullOrEmpty(step.Url))
+                    if (string.IsNullOrEmpty(step.Url))
                     {
-                        driver.Navigate().GoToUrl(step.Url);
-                        
-                        // Wait for page to load completely
-                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
-                        wait.Until(driver => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
-                        
-                        // Additional wait for any dynamic content
-                        await Task.Delay(1000);
+                        throw new ArgumentException("URL is required for navigate action");
                     }
+                    
+                    Console.WriteLine($"Navigating to: {step.Url}");
+                    driver.Navigate().GoToUrl(step.Url);
+                    
+                    // Wait for page to load completely
+                    var navWait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
+                    navWait.Until(driver => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
+                    
+                    // Additional wait for any dynamic content
+                    await Task.Delay(1000);
+                    Console.WriteLine($"Successfully navigated to: {step.Url}");
                     break;
 
                 case "wait":
                     if (int.TryParse(step.Value, out var waitMs))
                     {
+                        Console.WriteLine($"Waiting for {waitMs}ms");
                         await Task.Delay(waitMs);
                     }
+                    else
+                    {
+                        Console.WriteLine($"Warning: Invalid wait time '{step.Value}', skipping wait step");
+                    }
+                    break;
+
+                default:
+                    Console.WriteLine($"Warning: Unknown action '{step.Action}', skipping step");
                     break;
             }
 
             stepResult.Status = "passed";
             stepResult.End = DateTime.UtcNow;
+            Console.WriteLine($"Step completed successfully: {step.Action}");
         }
         catch (Exception ex)
         {
             stepResult.Status = "failed";
             stepResult.End = DateTime.UtcNow;
             stepResult.Error = new StepError { Message = ex.Message };
+            Console.WriteLine($"Step failed: {step.Action} - {ex.Message}");
+            
+            // Log additional details for debugging
+            if (ex is WebDriverTimeoutException)
+            {
+                Console.WriteLine($"Timeout occurred waiting for element: {step.ElementSelector}");
+            }
+            else if (ex is NoSuchElementException)
+            {
+                Console.WriteLine($"Element not found: {step.ElementSelector}");
+            }
+            else if (ex is ElementNotInteractableException)
+            {
+                Console.WriteLine($"Element not interactable: {step.ElementSelector}");
+            }
         }
 
         return stepResult;

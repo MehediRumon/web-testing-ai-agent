@@ -30,6 +30,7 @@ public interface IRecordingService
     Task<RecordedStep> AddStepAsync(string sessionId, RecordedStep step);
     Task<TestCase> SaveAsTestCaseAsync(string sessionId, string testCaseName, string description = "");
     Task<bool> DeleteRecordingSessionAsync(string sessionId);
+    Task<List<RecordedStep>> GetLiveStepsAsync(string sessionId);
 }
 
 /// <summary>

@@ -251,6 +251,38 @@ public class BrowserInteractionCapture
             }
         }, true);
 
+        // Capture on focus change to any non-input element to finalize pending inputs
+        document.addEventListener('focusin', function(e) {
+            if (e.target && !(e.target.type === 'text' || e.target.type === 'email' || 
+                           e.target.type === 'password' || e.target.type === 'search' ||
+                           e.target.type === 'tel' || e.target.type === 'url' ||
+                           e.target.tagName === 'TEXTAREA')) {
+                // User focused on a non-input element, finalize any pending input captures
+                for (var elementKey in window.webTestingCapture.inputTimeout) {
+                    if (window.webTestingCapture.inputTimeout[elementKey]) {
+                        clearTimeout(window.webTestingCapture.inputTimeout[elementKey]);
+                        
+                        // Capture the final value immediately
+                        if (window.webTestingCapture.lastInputValue[elementKey] !== undefined) {
+                            var parts = elementKey.split('_');
+                            var selector = parts.slice(0, -1).join('_');
+                            var finalEvent = {
+                                action: 'input',
+                                elementSelector: selector,
+                                value: window.webTestingCapture.lastInputValue[elementKey],
+                                url: window.location.href,
+                                timestamp: new Date().toISOString(),
+                                metadata: { triggered: 'focus_change' }
+                            };
+                            window.webTestingCapture.events.push(finalEvent);
+                            delete window.webTestingCapture.lastInputValue[elementKey];
+                        }
+                        delete window.webTestingCapture.inputTimeout[elementKey];
+                    }
+                }
+            }
+        }, true);
+
         document.addEventListener('change', function(e) {
             if (e.target && (e.target.type === 'select-one' || e.target.type === 'select-multiple' || 
                            e.target.type === 'checkbox' || e.target.type === 'radio')) {

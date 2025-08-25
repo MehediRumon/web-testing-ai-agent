@@ -207,8 +207,8 @@ public class RecordingController : ControllerBase
             if (session == null)
                 return NotFound(new { message = $"Recording session {sessionId} not found" });
 
-            // Return only the actual recorded steps (excluding session_start)
-            var steps = session.Steps.Where(s => s.Action != "session_start").ToList();
+            // Get the combined steps including both recorded steps and pending captured interactions
+            var steps = await _recordingService.GetLiveStepsAsync(sessionId);
             return Ok(steps);
         }
         catch (Exception ex)
