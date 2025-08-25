@@ -14,6 +14,7 @@ This Web Testing AI Agent implements the comprehensive requirements specified in
 - **Integrations**: Slack notifications and Jira issue creation
 - **Parallel Execution**: Run tests concurrently for faster feedback
 - **Security**: Built-in secret masking and PII protection
+- **Interaction Import**: Parse and import recorded user interactions from text format
 
 ## Architecture
 
@@ -137,7 +138,34 @@ cd WebTestingAiAgent.Cli
 dotnet run -- plan --objective "Test login functionality" --baseUrl "https://example.com" --out plan.json
 dotnet run -- run --plan plan.json --parallel 4
 dotnet run -- report --runId <id> --format html
+
+# New: Import interaction sequences
+dotnet run -- recording validate-interactions --file interactions.txt
+dotnet run -- recording import-interactions --file interactions.txt --name "Login Test" --base-url "https://myapp.com"
 ```
+
+## Interaction Parser (New Feature)
+
+The system now supports importing recorded user interactions from text format. This allows you to convert interaction sequences like:
+
+```
+#2 CLICK #UserName /Account/Login 08:20:12
+#3 INPUT #UserName "rumon.onnorokom@gmail.com" /Account/Login 08:20:38
+#4 CLICK #Password /Account/Login 08:20:45
+#5 INPUT #Password "Mrumon4726" /Account/Login 08:20:52
+```
+
+Into recording sessions that can be executed as test cases.
+
+### API Endpoints
+- `POST /api/recording/validate` - Validate interaction format
+- `POST /api/recording/import` - Import interactions and create recording session
+
+### CLI Commands
+- `recording validate-interactions --file <path>` - Validate interaction file
+- `recording import-interactions --file <path> --name <name>` - Import and create session
+
+See [INTERACTION_PARSER_GUIDE.md](INTERACTION_PARSER_GUIDE.md) for detailed documentation.
 
 ## Configuration
 
