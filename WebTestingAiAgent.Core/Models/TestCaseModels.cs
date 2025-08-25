@@ -74,6 +74,7 @@ public class ExecutionSettings
     public string Browser { get; set; } = "chrome";
     public bool Headless { get; set; } = false; // Changed to false for better recording experience
     public int TimeoutMs { get; set; } = 30000;
+    public int BrowserInitTimeoutMs { get; set; } = 15000; // Separate timeout for browser initialization
     public bool CaptureScreenshots { get; set; } = true;
     public bool StopOnError { get; set; } = true;
 }

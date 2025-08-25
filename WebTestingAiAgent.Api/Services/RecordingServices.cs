@@ -41,7 +41,8 @@ public class RecordingService : IRecordingService
             { 
                 Browser = "chrome", 
                 Headless = session.Settings.Headless, // Use headless setting from recording settings
-                TimeoutMs = session.Settings.TimeoutMs 
+                TimeoutMs = session.Settings.TimeoutMs,
+                BrowserInitTimeoutMs = 30000 // Extended timeout for recording sessions
             },
             session.Settings.ForceVisible); // Pass force visible flag
 
@@ -407,11 +408,45 @@ public class BrowserAutomationService : IBrowserAutomationService
     {
         var sessionId = Guid.NewGuid().ToString();
         
+        // First attempt: Try visible mode if requested
+        if (!settings.Headless || forceVisible)
+        {
+            try
+            {
+                Console.WriteLine("🎬 Attempting to start browser in visible mode for recording...");
+                var visibleDriver = await TryStartBrowserAsync(sessionId, baseUrl, settings, false, forceVisible);
+                if (visibleDriver != null)
+                {
+                    return sessionId;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️  Visible browser mode failed: {ex.Message}");
+                Console.WriteLine("   Falling back to headless mode for recording...");
+            }
+        }
+        
+        // Fallback: Try headless mode
+        Console.WriteLine("🤖 Starting browser in headless mode...");
+        var headlessDriver = await TryStartBrowserAsync(sessionId, baseUrl, settings, true, false);
+        if (headlessDriver != null)
+        {
+            Console.WriteLine("✅ Browser started successfully in headless mode");
+            Console.WriteLine("⚠️  Note: Recording will capture programmatic interactions only");
+            return sessionId;
+        }
+        
+        throw new InvalidOperationException("Failed to start browser in both visible and headless modes");
+    }
+    
+    private async Task<IWebDriver?> TryStartBrowserAsync(string sessionId, string baseUrl, ExecutionSettings settings, bool forceHeadless, bool forceVisible)
+    {
         var options = new ChromeOptions();
-        bool useHeadless = settings.Headless;
+        bool useHeadless = forceHeadless || settings.Headless;
         
         // Check if display is available for non-headless mode
-        if (!useHeadless)
+        if (!useHeadless && !forceHeadless)
         {
             var display = Environment.GetEnvironmentVariable("DISPLAY");
             if (string.IsNullOrEmpty(display))
@@ -434,13 +469,14 @@ public class BrowserAutomationService : IBrowserAutomationService
                         Console.WriteLine("   - Use X11 forwarding: ssh -X user@server");
                         Console.WriteLine("   - Use VNC or remote desktop for headless servers");
                         Console.WriteLine("   - Install Xvfb: apt-get install xvfb");
-                        Console.WriteLine("   ⚠️  Falling back to headless mode - recorded interactions may be limited.");
-                        useHeadless = true;
+                        Console.WriteLine("   ⚠️  Will try headless fallback if visible mode fails.");
+                        // Don't force headless here - let the caller handle fallback
+                        return null;
                     }
                 }
                 else
                 {
-                    Console.WriteLine("No DISPLAY environment variable found. Falling back to headless mode.");
+                    Console.WriteLine("No DISPLAY environment variable found. Using headless mode.");
                     useHeadless = true;
                 }
             }
@@ -460,43 +496,26 @@ public class BrowserAutomationService : IBrowserAutomationService
             options.AddArgument("--window-position=0,0");
         }
         
-        // Standard Chrome options for automation
+        // Minimal Chrome options for maximum compatibility
         options.AddArgument("--no-sandbox");
         options.AddArgument("--disable-dev-shm-usage");
         
-        // Additional options for headless environments and container/sandboxed environments
-        options.AddArgument("--disable-dbus");  // Fix D-Bus permission errors
-        options.AddArgument("--disable-background-networking");
-        options.AddArgument("--disable-sync");
-        options.AddArgument("--disable-translate");
-        options.AddArgument("--hide-scrollbars");
-        options.AddArgument("--metrics-recording-only");
-        options.AddArgument("--mute-audio");
-        options.AddArgument("--disable-background-timer-throttling");
-        options.AddArgument("--disable-backgrounding-occluded-windows");
-        options.AddArgument("--disable-renderer-backgrounding");
-        options.AddArgument("--disable-features=TranslateUI");
-        options.AddArgument("--disable-ipc-flooding-protection");
-        
-        // Only disable GPU in headless mode to maintain visual quality in visible mode
         if (useHeadless)
         {
-            options.AddArgument("--disable-gpu");
-            options.AddArgument("--disable-software-rasterizer");
+            options.AddArgument("--disable-gpu"); // Only disable GPU in headless mode
         }
         
-        options.AddArgument("--disable-extensions");
-        options.AddArgument("--disable-plugins");
-        options.AddArgument("--disable-default-apps");
-        options.AddArgument("--disable-web-security");
+        // Essential options for container environments
+        options.AddArgument("--disable-dbus");  // Fix D-Bus permission errors
         options.AddArgument("--no-first-run");
         options.AddArgument("--no-default-browser-check");
+        
         // Use a unique remote debugging port to avoid conflicts
         options.AddArgument($"--remote-debugging-port={9222 + new Random().Next(100, 999)}");
 
         try
         {
-            Console.WriteLine("Starting Chrome driver...");
+            Console.WriteLine($"Starting Chrome driver... (timeout: {settings.BrowserInitTimeoutMs/1000}s)");
             
             // Ensure DISPLAY environment variable is properly set for ChromeDriver
             var display = Environment.GetEnvironmentVariable("DISPLAY");
@@ -505,11 +524,12 @@ public class BrowserAutomationService : IBrowserAutomationService
                 Console.WriteLine($"Using DISPLAY: {display}");
             }
             
-            // Simplified ChromeDriver initialization with timeout
-            var driverTask = Task.Run(async () => {
+            // Simplified ChromeDriver initialization without Task.Run to get better error info
+            var driverTask = Task.Run(() => {
                 try
                 {
                     Console.WriteLine("Creating ChromeDriver with auto-detected driver path...");
+                    Console.WriteLine($"Chrome options: {string.Join(", ", options.Arguments)}");
                     
                     // Use default ChromeDriver constructor - this will automatically find chromedriver
                     // The Selenium.WebDriver.ChromeDriver package handles driver location and platform-specific executables
@@ -525,21 +545,34 @@ public class BrowserAutomationService : IBrowserAutomationService
                 catch (Exception ex)
                 {
                     Console.WriteLine($"ChromeDriver creation failed: {ex.Message}");
+                    Console.WriteLine($"Exception type: {ex.GetType().Name}");
+                    if (ex.InnerException != null)
+                    {
+                        Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                    }
                     Console.WriteLine($"Common solutions:");
                     Console.WriteLine($"  1. Ensure Google Chrome is installed");
                     Console.WriteLine($"  2. ChromeDriver version matches Chrome version");
                     Console.WriteLine($"  3. ChromeDriver is in PATH or use Selenium.WebDriver.ChromeDriver package");
+                    Console.WriteLine($"  4. Check DISPLAY environment and Xvfb setup");
                     throw;
                 }
             });
             
-            // Wait for driver creation with 10 second timeout (reduced from 25)
-            var timeoutTask = Task.Delay(10000);
+            // Wait for driver creation with configurable timeout, extended for virtual display environments
+            var baseTimeoutMs = settings.BrowserInitTimeoutMs;
+            // Reduce timeout for fallback attempts to fail faster
+            var initTimeoutMs = forceHeadless ? Math.Min(baseTimeoutMs, 10000) : baseTimeoutMs;
+            
+            Console.WriteLine($"Using browser initialization timeout: {initTimeoutMs/1000} seconds" + 
+                            (useHeadless ? " (headless)" : " (visible)"));
+            
+            var timeoutTask = Task.Delay(initTimeoutMs);
             var completedTask = await Task.WhenAny(driverTask, timeoutTask);
             
             if (completedTask == timeoutTask)
             {
-                throw new TimeoutException("ChromeDriver initialization timed out after 10 seconds");
+                throw new TimeoutException($"ChromeDriver initialization timed out after {initTimeoutMs/1000} seconds");
             }
             
             var driver = await driverTask;
@@ -548,13 +581,13 @@ public class BrowserAutomationService : IBrowserAutomationService
             _browserSessions[sessionId] = driver;
             
             Console.WriteLine($"Navigating to: {baseUrl}");
-            // Navigate to base URL - handle network errors gracefully for testing
             try
             {
-                driver.Navigate().GoToUrl(baseUrl);
-                Console.WriteLine("Navigation completed successfully.");
+                await driver.Navigate().GoToUrlAsync(baseUrl);
+                Console.WriteLine("Navigation successful.");
             }
-            catch (WebDriverException navEx) when (navEx.Message.Contains("ERR_NAME_NOT_RESOLVED") || 
+            catch (WebDriverException navEx) when (navEx.Message.Contains("ERR_INTERNET_DISCONNECTED") ||
+                                                  navEx.Message.Contains("ERR_NAME_NOT_RESOLVED") ||
                                                   navEx.Message.Contains("ERR_CONNECTION_REFUSED") ||
                                                   navEx.Message.Contains("ERR_NETWORK_ACCESS_DENIED"))
             {
@@ -576,19 +609,18 @@ public class BrowserAutomationService : IBrowserAutomationService
                 interactionCapture.StartCapturing();
                 Console.WriteLine("Capture script injected successfully.");
             }
-            catch (Exception jsEx)
+            catch (Exception captureEx)
             {
-                Console.WriteLine($"Warning: Failed to inject capture script: {jsEx.Message}");
-                Console.WriteLine("Session created but interaction capture may not work until a valid page is loaded.");
+                Console.WriteLine($"Warning: Failed to inject capture script: {captureEx.Message}");
+                Console.WriteLine("Recording session will continue but interaction capture may be limited.");
             }
-            Console.WriteLine("Recording session started successfully.");
             
-            return sessionId;
+            return driver;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to start browser session: {ex.Message}");
-            throw new InvalidOperationException($"Failed to start browser session: {ex.Message}", ex);
+            return null;
         }
     }
 

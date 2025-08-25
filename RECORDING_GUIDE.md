@@ -4,6 +4,20 @@
 
 The Web Testing AI Agent now supports enhanced browser recording with improved visibility and interaction capture capabilities. This guide explains how to use the recording functionality effectively.
 
+## ✅ Key Improvements Made
+
+### Enhanced Browser Initialization
+- **Configurable Timeouts**: Browser initialization timeout now configurable via `BrowserInitTimeoutMs`
+- **Automatic Fallback**: System tries visible mode first, falls back to headless if needed
+- **Improved Error Handling**: Detailed error messages and troubleshooting guidance
+- **Virtual Display Integration**: Automatic Xvfb setup when no DISPLAY available
+
+### Robust Environment Support
+- **Desktop Environment**: Full visible browser support with user interaction capture
+- **Server Environment**: Automatic virtual display setup with Xvfb
+- **Container Environment**: Docker-compatible with X11 forwarding support
+- **CI/CD Environment**: Graceful fallback ensures recording works in all environments
+
 ## Key Features
 
 ### ✅ Visible Browser Recording
