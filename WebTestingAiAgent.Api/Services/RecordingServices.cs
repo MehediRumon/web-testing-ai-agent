@@ -409,103 +409,32 @@ public class BrowserAutomationService : IBrowserAutomationService
     {
         var sessionId = Guid.NewGuid().ToString();
         
-        // First attempt: Try visible mode if requested
-        if (!settings.Headless || forceVisible)
+        // Always start browser in visible mode
+        Console.WriteLine("🎬 Starting browser in visible mode for recording...");
+        var driver = await TryStartBrowserAsync(sessionId, baseUrl, settings, false, true, false);
+        if (driver != null)
         {
-            try
-            {
-                Console.WriteLine("🎬 Attempting to start browser in visible mode for recording...");
-                var visibleDriver = await TryStartBrowserAsync(sessionId, baseUrl, settings, false, forceVisible, useVirtualDisplay);
-                if (visibleDriver != null)
-                {
-                    return sessionId;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"⚠️  Visible browser mode failed: {ex.Message}");
-                Console.WriteLine("   Falling back to headless mode for recording...");
-            }
-        }
-        
-        // Fallback: Try headless mode
-        Console.WriteLine("🤖 Starting browser in headless mode...");
-        var headlessDriver = await TryStartBrowserAsync(sessionId, baseUrl, settings, true, false, false);
-        if (headlessDriver != null)
-        {
-            Console.WriteLine("✅ Browser started successfully in headless mode");
-            Console.WriteLine("⚠️  Note: Recording will capture programmatic interactions only");
+            Console.WriteLine("✅ Browser started successfully in visible mode");
             return sessionId;
         }
         
-        throw new InvalidOperationException("Failed to start browser in both visible and headless modes");
+        throw new InvalidOperationException("Failed to start browser in visible mode");
     }
     
     private async Task<IWebDriver?> TryStartBrowserAsync(string sessionId, string baseUrl, ExecutionSettings settings, bool forceHeadless, bool forceVisible, bool useVirtualDisplay = false)
     {
         var options = new ChromeOptions();
-        bool useHeadless = forceHeadless || settings.Headless;
         
-        // Check if display is available for non-headless mode
-        if (!useHeadless && !forceHeadless)
-        {
-            var display = Environment.GetEnvironmentVariable("DISPLAY");
-            if (string.IsNullOrEmpty(display))
-            {
-                if (forceVisible)
-                {
-                    Console.WriteLine("⚠️  Warning: No DISPLAY environment variable found, but forceVisible=true for recording.");
-                    Console.WriteLine("   Recording requires a visible browser for user interaction capture.");
-                    
-                    // When forceVisible=true, always try to set up virtual display regardless of useVirtualDisplay setting
-                    Console.WriteLine("   Attempting to setup virtual display (Xvfb) automatically for visible recording...");
-                    if (TrySetupVirtualDisplay())
-                    {
-                        Console.WriteLine("✅ Virtual display setup successful - browser will be visible for recording");
-                        useHeadless = false; // Use visible mode with virtual display
-                    }
-                    else
-                    {
-                        Console.WriteLine("   ❌ Virtual display setup failed.");
-                        Console.WriteLine("   🔧 Solutions:");
-                        Console.WriteLine("   - Install Xvfb: apt-get install xvfb");
-                        Console.WriteLine("   - Run on a desktop environment with GUI");
-                        Console.WriteLine("   - Use X11 forwarding: ssh -X user@server");
-                        Console.WriteLine("   - Use VNC or remote desktop for headless servers");
-                        Console.WriteLine("   ⚠️  Will try headless fallback if visible mode fails.");
-                        return null;
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("No DISPLAY environment variable found. Using headless mode.");
-                    useHeadless = true;
-                }
-            }
-        }
-        
-        if (useHeadless)
-        {
-            options.AddArgument("--headless");
-            Console.WriteLine("Running browser in headless mode");
-        }
-        else
-        {
-            Console.WriteLine("Running browser in visible mode for interaction recording");
-            // Add options to improve the visible browser experience for recording
-            options.AddArgument("--window-size=1280,720");
-            // Remove --start-maximized as it can cause issues in virtual display environments
-            options.AddArgument("--window-position=0,0");
-        }
+        // Always run in visible mode as per requirements
+        Console.WriteLine("Running browser in visible mode for interaction recording");
+        // Add options to improve the visible browser experience for recording
+        options.AddArgument("--window-size=1280,720");
+        options.AddArgument("--window-position=0,0");
         
         // Minimal Chrome options for maximum compatibility
         options.AddArgument("--no-sandbox");
         options.AddArgument("--disable-dev-shm-usage");
-        
-        if (useHeadless)
-        {
-            options.AddArgument("--disable-gpu"); // Only disable GPU in headless mode
-        }
+        options.AddArgument("--disable-gpu"); // Always disable GPU for consistency
         
         // Essential options for container environments
         options.AddArgument("--disable-dbus");  // Fix D-Bus permission errors
@@ -566,8 +495,7 @@ public class BrowserAutomationService : IBrowserAutomationService
             // Reduce timeout for fallback attempts to fail faster
             var initTimeoutMs = forceHeadless ? Math.Min(baseTimeoutMs, 10000) : baseTimeoutMs;
             
-            Console.WriteLine($"Using browser initialization timeout: {initTimeoutMs/1000} seconds" + 
-                            (useHeadless ? " (headless)" : " (visible)"));
+            Console.WriteLine($"Using browser initialization timeout: {initTimeoutMs/1000} seconds (visible)");
             
             var timeoutTask = Task.Delay(initTimeoutMs);
             var completedTask = await Task.WhenAny(driverTask, timeoutTask);
@@ -806,61 +734,5 @@ public class BrowserAutomationService : IBrowserAutomationService
         await Task.CompletedTask;
     }
 
-    private bool TrySetupVirtualDisplay()
-    {
-        try
-        {
-            // Check if Xvfb is available
-            var xvfbProcess = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "which",
-                    Arguments = "Xvfb",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    CreateNoWindow = true
-                }
-            };
-            
-            xvfbProcess.Start();
-            xvfbProcess.WaitForExit();
-            
-            if (xvfbProcess.ExitCode != 0)
-            {
-                Console.WriteLine("   Xvfb not available - install with: apt-get install xvfb");
-                return false;
-            }
 
-            // Start virtual display
-            var virtualDisplay = new System.Diagnostics.Process
-            {
-                StartInfo = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "Xvfb",
-                    Arguments = ":99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                }
-            };
-
-            virtualDisplay.Start();
-            
-            // Wait a moment for the display to start
-            System.Threading.Thread.Sleep(2000);
-            
-            // Set the DISPLAY environment variable
-            Environment.SetEnvironmentVariable("DISPLAY", ":99");
-            
-            Console.WriteLine("   Virtual display started on :99");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"   Failed to setup virtual display: {ex.Message}");
-            return false;
-        }
-    }
 }

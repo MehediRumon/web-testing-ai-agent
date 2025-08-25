@@ -1116,26 +1116,8 @@ public class ExecutorService : IExecutorService
     {
         var options = new ChromeOptions();
         
-        // Auto-detect headless environment (no display available)
-        bool isHeadlessEnvironment = string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DISPLAY"));
-        
-        // Users can override headless mode by explicitly setting it to false, but warn about potential issues
-        bool shouldRunHeadless = config.Headless;
-        if (!config.Headless && isHeadlessEnvironment)
-        {
-            Console.WriteLine("⚠️  Warning: No DISPLAY environment variable detected, but headless mode is disabled.");
-            Console.WriteLine("   The browser may not be visible. Consider setting headless=true for server environments.");
-        }
-        
-        if (shouldRunHeadless)
-        {
-            options.AddArgument("--headless");
-            Console.WriteLine("Running in headless mode");
-        }
-        else
-        {
-            Console.WriteLine("Running in non-headless mode (browser will be visible)");
-        }
+        // Always run in non-headless mode (browser will be visible)
+        Console.WriteLine("Running in non-headless mode (browser will be visible)");
         
         // Enhanced options for better compatibility
         options.AddArgument("--disable-dev-shm-usage");
