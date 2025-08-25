@@ -113,7 +113,17 @@ public class RecordingService : IRecordingService
         {
             try
             {
+                // Use GetReadyCapturedEvents for regular collection, then get remaining events when stopping
                 var capturedSteps = await _browserService.CollectCapturedInteractionsAsync(browserSessionId);
+                
+                // Also get any remaining events that might not be "ready" yet when stopping recording
+                if (_browserService is BrowserAutomationService browserAutomation && 
+                    browserAutomation._interactionCaptures.TryGetValue(browserSessionId, out var capture))
+                {
+                    var remainingSteps = capture.GetCapturedEvents(); // Get ALL remaining events
+                    capturedSteps.AddRange(remainingSteps);
+                }
+                
                 foreach (var step in capturedSteps)
                 {
                     step.Order = session.Steps.Count;
@@ -275,7 +285,17 @@ public class RecordingService : IRecordingService
         {
             try
             {
+                // Collect ready events first, then any remaining events when saving
                 var capturedSteps = await _browserService.CollectCapturedInteractionsAsync(browserSessionId);
+                
+                // Also get any remaining events that might not be "ready" yet when saving
+                if (_browserService is BrowserAutomationService browserAutomation && 
+                    browserAutomation._interactionCaptures.TryGetValue(browserSessionId, out var capture))
+                {
+                    var remainingSteps = capture.GetCapturedEvents(); // Get ALL remaining events
+                    capturedSteps.AddRange(remainingSteps);
+                }
+                
                 foreach (var step in capturedSteps)
                 {
                     // Set the correct order for the step
@@ -439,7 +459,7 @@ public class RecordingService : IRecordingService
 public class BrowserAutomationService : IBrowserAutomationService
 {
     private readonly ConcurrentDictionary<string, IWebDriver> _browserSessions = new();
-    private readonly ConcurrentDictionary<string, BrowserInteractionCapture> _interactionCaptures = new();
+    public readonly ConcurrentDictionary<string, BrowserInteractionCapture> _interactionCaptures = new();
 
     public async Task<string> StartBrowserSessionAsync(string baseUrl, ExecutionSettings settings, bool forceVisible = false, bool useVirtualDisplay = false)
     {
@@ -753,8 +773,8 @@ public class BrowserAutomationService : IBrowserAutomationService
         // Collect events from browser
         capture.CollectEventsFromBrowser(driver);
         
-        // Return captured events
-        return capture.GetCapturedEvents();
+        // Return only ready captured events (respects debouncing)
+        return capture.GetReadyCapturedEvents();
     }
 
     public async Task SetCaptureStateAsync(string sessionId, bool isCapturing)

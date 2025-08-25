@@ -218,6 +218,47 @@ public class RecordingController : ControllerBase
     }
 
     /// <summary>
+    /// Execute a recording session directly
+    /// </summary>
+    [HttpPost("{sessionId}/execute")]
+    public async Task<ActionResult<TestExecution>> ExecuteRecording(string sessionId, [FromBody] ExecutionSettings? settings = null)
+    {
+        try
+        {
+            var session = await _recordingService.GetRecordingSessionAsync(sessionId);
+            if (session == null)
+                return NotFound(new { message = $"Recording session {sessionId} not found" });
+
+            if (session.Steps.Count == 0)
+                return BadRequest(new { message = "Recording session has no steps to execute" });
+
+            // First save the recording as a temporary test case
+            var tempTestCaseName = $"TempExec_{sessionId}_{DateTime.UtcNow:yyyyMMdd_HHmmss}";
+            var tempTestCase = await _recordingService.SaveAsTestCaseAsync(sessionId, tempTestCaseName, 
+                $"Temporary test case for executing recording session '{session.Name}'");
+
+            // Execute the test case
+            var execRequest = new ExecuteTestCaseRequest
+            {
+                TestCaseId = tempTestCase.Id,
+                Settings = settings ?? new ExecutionSettings()
+            };
+
+            var executionService = HttpContext.RequestServices.GetRequiredService<ITestExecutionService>();
+            var execution = await executionService.ExecuteTestCaseAsync(execRequest);
+            return Ok(execution);
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Error executing recording session", error = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Delete a recording session
     /// </summary>
     [HttpDelete("{sessionId}")]
