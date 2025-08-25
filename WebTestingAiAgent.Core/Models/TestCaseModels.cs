@@ -54,6 +54,7 @@ public class RecordingSettings
     public bool AutoExecuteAfterRecording { get; set; } = false;
     public bool Headless { get; set; } = false; // Recording should show browser by default for user interaction
     public bool ForceVisible { get; set; } = true; // Force visible browser even without DISPLAY environment
+    public bool UseVirtualDisplay { get; set; } = false; // Only use virtual display (Xvfb) when explicitly enabled
 }
 
 public class TestExecution
