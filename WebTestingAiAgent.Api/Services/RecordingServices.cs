@@ -667,17 +667,31 @@ public class BrowserAutomationService : IBrowserAutomationService
                 case "click":
                     if (!string.IsNullOrEmpty(step.ElementSelector))
                     {
-                        var element = driver.FindElement(By.CssSelector(step.ElementSelector));
+                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
+                        var element = wait.Until(driver => driver.FindElement(By.CssSelector(step.ElementSelector)));
+                        
+                        // Ensure element is clickable
+                        wait.Until(driver => element.Enabled && element.Displayed);
                         element.Click();
+                        
+                        // Small delay after click to allow any navigation or updates
+                        await Task.Delay(200);
                     }
                     break;
 
                 case "input":
                     if (!string.IsNullOrEmpty(step.ElementSelector) && !string.IsNullOrEmpty(step.Value))
                     {
-                        var element = driver.FindElement(By.CssSelector(step.ElementSelector));
+                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(5));
+                        var element = wait.Until(driver => driver.FindElement(By.CssSelector(step.ElementSelector)));
+                        
+                        // Ensure element is interactable
+                        wait.Until(driver => element.Enabled && element.Displayed);
                         element.Clear();
                         element.SendKeys(step.Value);
+                        
+                        // Small delay after input
+                        await Task.Delay(200);
                     }
                     break;
 
@@ -694,6 +708,13 @@ public class BrowserAutomationService : IBrowserAutomationService
                     if (!string.IsNullOrEmpty(step.Url))
                     {
                         driver.Navigate().GoToUrl(step.Url);
+                        
+                        // Wait for page to load completely
+                        var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(10));
+                        wait.Until(driver => ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete"));
+                        
+                        // Additional wait for any dynamic content
+                        await Task.Delay(1000);
                     }
                     break;
 
