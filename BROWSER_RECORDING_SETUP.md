@@ -38,28 +38,45 @@ curl -X POST http://localhost:5146/api/recording/start \
 
 ## 🖥️ Server/Headless Environment Setup
 
-For server environments without GUI (VPS, CI/CD, Docker):
+**Important**: As of the latest update, the system **prioritizes local displays** over virtual displays. Virtual displays are only used when explicitly requested.
 
-### Option 1: Using Xvfb (Virtual Display)
+For server environments without GUI (VPS, CI/CD, Docker), you have these options:
+
+### Option 1: Using Real Display (Recommended)
+
+```bash
+# Use X11 forwarding (SSH)
+ssh -X user@your-server
+
+# Verify X11 forwarding works
+echo $DISPLAY
+# Should show something like localhost:10.0
+
+# Now run recording - will use real forwarded display
+```
+
+### Option 2: Using Virtual Display (Explicit)
+
+**Note**: You must now explicitly enable virtual display usage.
 
 ```bash
 # Install Xvfb
 sudo apt-get update
 sudo apt-get install xvfb
 
-# The system will automatically set up virtual display
-# No additional configuration needed!
-```
-
-### Option 2: Using X11 Forwarding (SSH)
-
-```bash
-# Connect with X11 forwarding enabled
-ssh -X user@your-server
-
-# Verify X11 forwarding works
-echo $DISPLAY
-# Should show something like localhost:10.0
+# Create recording with virtual display enabled
+curl -X POST http://localhost:5146/api/recording/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My Test Recording",
+    "baseUrl": "https://example.com",
+    "settings": {
+      "headless": false,
+      "forceVisible": true,
+      "useVirtualDisplay": true,
+      "timeoutMs": 30000
+    }
+  }'
 ```
 
 ### Option 3: Using VNC/Remote Desktop
@@ -104,12 +121,13 @@ services:
 ```json
 {
   "settings": {
-    "headless": false,           // Use visible browser
-    "forceVisible": true,        // Force visible even without DISPLAY
-    "timeoutMs": 30000,         // Page interaction timeout
-    "captureScreenshots": true,  // Capture screenshots during recording
-    "maxSteps": 100,            // Maximum recorded steps
-    "maxRecordingMinutes": 60   // Maximum recording duration
+    "headless": false,               // Use visible browser
+    "forceVisible": true,            // Force visible even without DISPLAY
+    "useVirtualDisplay": false,      // Only use virtual display when explicitly enabled
+    "timeoutMs": 30000,             // Page interaction timeout
+    "captureScreenshots": true,      // Capture screenshots during recording
+    "maxSteps": 100,                // Maximum recorded steps
+    "maxRecordingMinutes": 60       // Maximum recording duration
   }
 }
 ```
@@ -141,11 +159,14 @@ services:
 
 **Symptom**: "No DISPLAY environment variable found"
 
-**Solutions**:
-1. **Desktop Environment**: Run on a machine with GUI
-2. **X11 Forwarding**: Use `ssh -X` to connect
-3. **Virtual Display**: Install and use Xvfb
-4. **VNC/RDP**: Set up remote desktop access
+**New Behavior**: The system now prioritizes real displays over virtual displays.
+
+**Solutions** (in order of preference):
+1. **Desktop Environment**: Run on a machine with GUI (recommended)
+2. **X11 Forwarding**: Use `ssh -X` to connect to server
+3. **VNC/RDP**: Set up remote desktop access  
+4. **Virtual Display**: Set `"useVirtualDisplay": true` in recording settings
+5. **Headless Mode**: Use `"headless": true` for automated execution
 
 ### Recording Not Capturing Interactions
 

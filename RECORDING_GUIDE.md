@@ -53,7 +53,8 @@ The recording system captures:
   "maxRecordingMinutes": 60,
   "autoExecuteAfterRecording": false,
   "headless": false,           // New: Control browser visibility
-  "forceVisible": true         // New: Force visible even without DISPLAY
+  "forceVisible": true,        // New: Force visible even without DISPLAY
+  "useVirtualDisplay": false   // New: Only use virtual display when explicitly enabled
 }
 ```
 
@@ -73,6 +74,7 @@ The recording system captures:
 
 ### 1. API Recording Session
 
+**Desktop Environment (Recommended):**
 ```bash
 curl -X POST http://localhost:5146/api/recording/start \
   -H "Content-Type: application/json" \
@@ -82,6 +84,23 @@ curl -X POST http://localhost:5146/api/recording/start \
     "settings": {
       "headless": false,
       "forceVisible": true,
+      "captureScreenshots": true,
+      "maxSteps": 50
+    }
+  }'
+```
+
+**Server Environment with Virtual Display:**
+```bash
+curl -X POST http://localhost:5146/api/recording/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "User Login Flow",
+    "baseUrl": "https://example.com/login",
+    "settings": {
+      "headless": false,
+      "forceVisible": true,
+      "useVirtualDisplay": true,
       "captureScreenshots": true,
       "maxSteps": 50
     }
