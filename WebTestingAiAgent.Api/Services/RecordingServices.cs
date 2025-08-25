@@ -457,33 +457,22 @@ public class BrowserAutomationService : IBrowserAutomationService
                     Console.WriteLine("⚠️  Warning: No DISPLAY environment variable found, but forceVisible=true for recording.");
                     Console.WriteLine("   Recording requires a visible browser for user interaction capture.");
                     
-                    // Only try to set up virtual display if explicitly enabled
-                    if (useVirtualDisplay)
+                    // When forceVisible=true, always try to set up virtual display regardless of useVirtualDisplay setting
+                    Console.WriteLine("   Attempting to setup virtual display (Xvfb) automatically for visible recording...");
+                    if (TrySetupVirtualDisplay())
                     {
-                        Console.WriteLine("   Attempting to setup virtual display (Xvfb) as requested...");
-                        if (TrySetupVirtualDisplay())
-                        {
-                            Console.WriteLine("✅ Virtual display setup successful - browser will be visible for recording");
-                            useHeadless = false; // Use visible mode with virtual display
-                        }
-                        else
-                        {
-                            Console.WriteLine("   ❌ Virtual display setup failed.");
-                            Console.WriteLine("   🔧 Solutions:");
-                            Console.WriteLine("   - Install Xvfb: apt-get install xvfb");
-                            Console.WriteLine("   - Use alternative virtual display solutions");
-                            Console.WriteLine("   ⚠️  Will try headless fallback if visible mode fails.");
-                            return null;
-                        }
+                        Console.WriteLine("✅ Virtual display setup successful - browser will be visible for recording");
+                        useHeadless = false; // Use visible mode with virtual display
                     }
                     else
                     {
-                        Console.WriteLine("   🔧 To use a visible browser, please:");
-                        Console.WriteLine("   - Run on a desktop environment with GUI (recommended)");
+                        Console.WriteLine("   ❌ Virtual display setup failed.");
+                        Console.WriteLine("   🔧 Solutions:");
+                        Console.WriteLine("   - Install Xvfb: apt-get install xvfb");
+                        Console.WriteLine("   - Run on a desktop environment with GUI");
                         Console.WriteLine("   - Use X11 forwarding: ssh -X user@server");
                         Console.WriteLine("   - Use VNC or remote desktop for headless servers");
-                        Console.WriteLine("   - Set useVirtualDisplay=true to enable Xvfb virtual display");
-                        Console.WriteLine("   ⚠️  Returning null - will try headless fallback.");
+                        Console.WriteLine("   ⚠️  Will try headless fallback if visible mode fails.");
                         return null;
                     }
                 }
