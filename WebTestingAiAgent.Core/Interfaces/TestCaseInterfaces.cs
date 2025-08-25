@@ -76,3 +76,13 @@ public interface ITestCaseFormatService
     Task<TestCase> ParseFromGherkinAsync(string content);
     Task<bool> ValidateFormatAsync(string content, TestCaseFormat format);
 }
+
+/// <summary>
+/// Service for parsing recorded user interactions from text format
+/// </summary>
+public interface IInteractionParserService
+{
+    Task<List<RecordedStep>> ParseInteractionsAsync(string interactionText);
+    Task<bool> ValidateInteractionsAsync(string interactionText);
+    Task<RecordingSession> CreateRecordingSessionFromInteractionsAsync(string interactionText, string sessionName, string baseUrl);
+}

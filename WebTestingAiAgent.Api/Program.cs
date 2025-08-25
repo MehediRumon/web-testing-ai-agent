@@ -44,6 +44,7 @@ builder.Services.AddScoped<ITestCaseService, TestCaseService>();
 builder.Services.AddSingleton<IBrowserAutomationService, BrowserAutomationService>();
 builder.Services.AddSingleton<IRecordingService, RecordingService>();
 builder.Services.AddScoped<ITestExecutionService, TestExecutionService>();
+builder.Services.AddScoped<IInteractionParserService, InteractionParserService>();
 
 var app = builder.Build();
 
