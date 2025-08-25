@@ -1,5 +1,6 @@
 @page "/recording"
 @using System.Text.Json
+@using WebTestingAiAgent.Core.Models
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
 @implements IDisposable
@@ -64,6 +65,12 @@
                                             {
                                                 <button class="btn btn-sm btn-success" @onclick="() => ResumeRecording(session.Id)">
                                                     <i class="bi bi-play"></i>
+                                                </button>
+                                            }
+                                            else if (session.Status == RecordingStatus.Stopped && session.StepCount > 0)
+                                            {
+                                                <button class="btn btn-sm btn-success" @onclick="() => ExecuteRecording(session.Id)" title="Execute recorded steps">
+                                                    <i class="bi bi-play-fill"></i>
                                                 </button>
                                             }
                                             <button class="btn btn-sm btn-danger" @onclick="() => StopRecording(session.Id)">
@@ -470,6 +477,43 @@
         catch (Exception ex)
         {
             errorMessage = $"Error stopping recording: {ex.Message}";
+        }
+    }
+
+    private async Task ExecuteRecording(string sessionId)
+    {
+        try
+        {
+            errorMessage = string.Empty;
+            
+            var jsonPayload = JsonSerializer.Serialize(new { captureScreenshots = true, stopOnError = false });
+            var requestContent = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+            
+            var response = await Http.PostAsync($"http://localhost:5146/api/recording/{sessionId}/execute", requestContent);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var execution = JsonSerializer.Deserialize<TestExecution>(responseContent, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                
+                // Show success message with execution ID
+                errorMessage = $"Execution started successfully! Execution ID: {execution?.Id}";
+                
+                // Optionally redirect to execution details or show a modal
+                await JSRuntime.InvokeVoidAsync("alert", $"Recording execution started! You can monitor progress in the Executions section.");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Error executing recording: {errorContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error executing recording: {ex.Message}";
         }
     }
 

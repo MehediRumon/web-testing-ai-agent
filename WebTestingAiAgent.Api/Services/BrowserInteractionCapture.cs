@@ -36,6 +36,47 @@ public class BrowserInteractionCapture
         return events;
     }
 
+    /// <summary>
+    /// Get only ready events - non-input events or input events that have aged past the debounce period
+    /// </summary>
+    public List<RecordedStep> GetReadyCapturedEvents()
+    {
+        var events = new List<RecordedStep>();
+        var tempEvents = new List<RecordedStep>();
+        
+        // Extract all events first
+        while (_capturedEvents.TryDequeue(out var evt))
+        {
+            tempEvents.Add(evt);
+        }
+        
+        var now = DateTime.UtcNow;
+        foreach (var evt in tempEvents)
+        {
+            // For input events, only include if they've aged past debounce period (600ms to be safe)
+            if (evt.Action.ToLower() == "input")
+            {
+                var age = now - evt.Timestamp;
+                if (age.TotalMilliseconds >= 600)
+                {
+                    events.Add(evt);
+                }
+                else
+                {
+                    // Re-queue events that aren't ready yet
+                    _capturedEvents.Enqueue(evt);
+                }
+            }
+            else
+            {
+                // Non-input events are always ready
+                events.Add(evt);
+            }
+        }
+        
+        return events;
+    }
+
     public void InjectCapturingScript(IWebDriver driver)
     {
         var jsExecutor = (IJavaScriptExecutor)driver;
