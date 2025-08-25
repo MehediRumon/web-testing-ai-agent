@@ -2,6 +2,7 @@
 @using System.Text.Json
 @inject HttpClient Http
 @inject IJSRuntime JSRuntime
+@implements IDisposable
 
 <PageTitle>Recording Sessions - Web Testing AI Agent</PageTitle>
 
@@ -70,6 +71,9 @@
                                             </button>
                                             <button class="btn btn-sm btn-primary" @onclick="() => ShowSaveModal(session.Id)">
                                                 <i class="bi bi-save"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-info" @onclick="() => ShowLiveSteps(session.Id)">
+                                                <i class="bi bi-eye"></i>
                                             </button>
                                         </div>
                                     </div>
@@ -221,14 +225,110 @@
     </div>
 }
 
+<!-- Live Steps Modal -->
+@if (showLiveStepsModal)
+{
+    <div class="modal fade show d-block" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-eye me-2"></i>Live Steps - @GetSessionName(selectedSessionId)
+                    </h5>
+                    <button type="button" class="btn-close" @onclick="CloseLiveStepsModal"></button>
+                </div>
+                <div class="modal-body">
+                    @if (loadingSteps)
+                    {
+                        <div class="text-center py-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2">Loading steps...</p>
+                        </div>
+                    }
+                    else if (liveSteps?.Any() == true)
+                    {
+                        <div class="step-list" style="max-height: 400px; overflow-y: auto;">
+                            @foreach (var step in liveSteps.OrderBy(s => s.Order))
+                            {
+                                <div class="card mb-2 @GetStepCardClass(step)">
+                                    <div class="card-body py-2">
+                                        <div class="row align-items-center">
+                                            <div class="col-auto">
+                                                <span class="badge bg-primary">#@(step.Order + 1)</span>
+                                            </div>
+                                            <div class="col-auto">
+                                                <i class="@GetStepIcon(step.Action) me-1"></i>
+                                                <strong>@step.Action.ToUpper()</strong>
+                                            </div>
+                                            <div class="col">
+                                                @if (!string.IsNullOrEmpty(step.ElementSelector))
+                                                {
+                                                    <small class="text-muted">
+                                                        <i class="bi bi-cursor me-1"></i>@step.ElementSelector
+                                                    </small>
+                                                }
+                                                @if (!string.IsNullOrEmpty(step.Value))
+                                                {
+                                                    <br>
+                                                    <small class="text-success">
+                                                        <i class="bi bi-keyboard me-1"></i>"@step.Value"
+                                                    </small>
+                                                }
+                                                @if (!string.IsNullOrEmpty(step.Url))
+                                                {
+                                                    <br>
+                                                    <small class="text-info">
+                                                        <i class="bi bi-link me-1"></i>@GetShortUrl(step.Url)
+                                                    </small>
+                                                }
+                                            </div>
+                                            <div class="col-auto">
+                                                <small class="text-muted">@step.Timestamp.ToString("HH:mm:ss")</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <div class="mt-3 text-center">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Showing @liveSteps.Count steps • Auto-refreshing every 2 seconds
+                            </small>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="bi bi-collection text-muted display-4"></i>
+                            <p class="mt-3 text-muted">No steps recorded yet</p>
+                            <small class="text-muted">Start interacting with the browser to see live steps here</small>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseLiveStepsModal">Close</button>
+                    <button class="btn btn-primary" @onclick="RefreshLiveSteps" disabled="@loadingSteps">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<RecordingSessionResponse>? activeSessions;
     private bool loading = true;
     private bool showNewRecordingModal = false;
     private bool showSaveModal = false;
+    private bool showLiveStepsModal = false;
     private bool isSubmitting = false;
+    private bool loadingSteps = false;
     private string errorMessage = string.Empty;
     private string selectedSessionId = string.Empty;
+    private List<RecordedStep>? liveSteps;
+    private Timer? liveStepsTimer;
 
     private StartRecordingRequest newRecordingRequest = new();
     private SaveAsTestCaseRequest saveRequest = new();
@@ -440,6 +540,124 @@
             return $"{duration.Minutes:D2}:{duration.Seconds:D2}";
     }
 
+    private async Task ShowLiveSteps(string sessionId)
+    {
+        selectedSessionId = sessionId;
+        showLiveStepsModal = true;
+        await LoadLiveSteps();
+        StartLiveStepsRefresh();
+    }
+
+    private void CloseLiveStepsModal()
+    {
+        showLiveStepsModal = false;
+        selectedSessionId = string.Empty;
+        liveSteps = null;
+        StopLiveStepsRefresh();
+    }
+
+    private async Task LoadLiveSteps()
+    {
+        if (string.IsNullOrEmpty(selectedSessionId)) return;
+
+        try
+        {
+            loadingSteps = true;
+            var response = await Http.GetAsync($"http://localhost:5146/api/recording/{selectedSessionId}/steps");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                liveSteps = JsonSerializer.Deserialize<List<RecordedStep>>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading live steps: {ex.Message}";
+        }
+        finally
+        {
+            loadingSteps = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshLiveSteps()
+    {
+        await LoadLiveSteps();
+    }
+
+    private void StartLiveStepsRefresh()
+    {
+        liveStepsTimer = new Timer(async _ =>
+        {
+            if (showLiveStepsModal && !string.IsNullOrEmpty(selectedSessionId))
+            {
+                await InvokeAsync(async () => await LoadLiveSteps());
+            }
+        }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    private void StopLiveStepsRefresh()
+    {
+        liveStepsTimer?.Dispose();
+        liveStepsTimer = null;
+    }
+
+    private string GetSessionName(string sessionId)
+    {
+        var session = activeSessions?.FirstOrDefault(s => s.Id == sessionId);
+        return session?.Name ?? "Unknown Session";
+    }
+
+    private string GetStepIcon(string action)
+    {
+        return action?.ToLower() switch
+        {
+            "click" => "bi bi-cursor-fill text-primary",
+            "input" => "bi bi-keyboard text-success",
+            "select" => "bi bi-ui-checks text-warning",
+            "submit" => "bi bi-send text-info",
+            "navigate" => "bi bi-arrow-right text-secondary",
+            _ => "bi bi-dot text-muted"
+        };
+    }
+
+    private string GetStepCardClass(RecordedStep step)
+    {
+        return step.Action?.ToLower() switch
+        {
+            "click" => "border-primary",
+            "input" => "border-success",
+            "select" => "border-warning",
+            "submit" => "border-info",
+            "navigate" => "border-secondary",
+            _ => ""
+        };
+    }
+
+    private string GetShortUrl(string url)
+    {
+        if (string.IsNullOrEmpty(url)) return "";
+        try
+        {
+            var uri = new Uri(url);
+            var path = uri.PathAndQuery;
+            return path.Length > 50 ? path.Substring(0, 47) + "..." : path;
+        }
+        catch
+        {
+            return url.Length > 50 ? url.Substring(0, 47) + "..." : url;
+        }
+    }
+
+    public void Dispose()
+    {
+        StopLiveStepsRefresh();
+    }
+
     // Models for this component
     public class StartRecordingRequest
     {
@@ -459,6 +677,18 @@
     {
         public string TestCaseName { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+    }
+
+    public class RecordedStep
+    {
+        public string Id { get; set; } = string.Empty;
+        public int Order { get; set; }
+        public string Action { get; set; } = string.Empty;
+        public string? ElementSelector { get; set; }
+        public string? Value { get; set; }
+        public string? Url { get; set; }
+        public Dictionary<string, object> Metadata { get; set; } = new();
+        public DateTime Timestamp { get; set; }
     }
 
     public class RecordingSessionResponse

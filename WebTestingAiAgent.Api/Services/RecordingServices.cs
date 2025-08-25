@@ -195,28 +195,64 @@ public class RecordingService : IRecordingService
         if (session.Steps.Count >= session.Settings.MaxSteps)
             throw new InvalidOperationException($"Maximum steps limit ({session.Settings.MaxSteps}) reached");
 
-        // Avoid duplicate steps based on action, element, and timestamp proximity (within 500ms)
-        var recentSteps = session.Steps.Where(s => 
-            DateTime.UtcNow - s.Timestamp < TimeSpan.FromMilliseconds(500) &&
-            s.Action == step.Action &&
-            s.ElementSelector == step.ElementSelector
-        ).ToList();
-        
-        if (recentSteps.Any())
+        // Improved duplicate detection algorithm
+        var isDuplicate = false;
+        RecordedStep? existingStep = null;
+
+        // Handle different types of events with specific duplicate detection logic
+        switch (step.Action.ToLower())
         {
-            // For input events, update the value instead of creating a new step
-            if (step.Action == "input" && recentSteps.Any())
-            {
-                var lastInputStep = recentSteps.Last();
-                lastInputStep.Value = step.Value;
-                lastInputStep.Timestamp = DateTime.UtcNow;
-                return lastInputStep;
-            }
-            // Skip duplicate non-input actions
-            else if (step.Action != "input")
-            {
-                return recentSteps.Last();
-            }
+            case "input":
+                // For input events, look for recent input on the same element within 1 second
+                existingStep = session.Steps
+                    .Where(s => s.Action == "input" && 
+                               s.ElementSelector == step.ElementSelector &&
+                               DateTime.UtcNow - s.Timestamp < TimeSpan.FromSeconds(1))
+                    .LastOrDefault();
+                
+                if (existingStep != null)
+                {
+                    // Update the existing input step with the new value and timestamp
+                    existingStep.Value = step.Value;
+                    existingStep.Timestamp = DateTime.UtcNow;
+                    Console.WriteLine($"Recording session {sessionId}: Updated input step value to '{step.Value}' for {step.ElementSelector}");
+                    return existingStep;
+                }
+                break;
+
+            case "click":
+                // For click events, check for exact duplicate clicks within 300ms
+                isDuplicate = session.Steps.Any(s => 
+                    s.Action == "click" &&
+                    s.ElementSelector == step.ElementSelector &&
+                    DateTime.UtcNow - s.Timestamp < TimeSpan.FromMilliseconds(300));
+                break;
+
+            case "navigate":
+                // For navigation events, check for same URL within 2 seconds to avoid duplicates from multiple triggers
+                isDuplicate = session.Steps.Any(s => 
+                    s.Action == "navigate" &&
+                    s.Url == step.Url &&
+                    DateTime.UtcNow - s.Timestamp < TimeSpan.FromSeconds(2));
+                break;
+
+            case "select":
+            case "submit":
+                // For form-related events, check for duplicates within 500ms
+                isDuplicate = session.Steps.Any(s => 
+                    s.Action == step.Action &&
+                    s.ElementSelector == step.ElementSelector &&
+                    DateTime.UtcNow - s.Timestamp < TimeSpan.FromMilliseconds(500));
+                break;
+        }
+
+        // Skip this step if it's identified as a duplicate
+        if (isDuplicate)
+        {
+            Console.WriteLine($"Recording session {sessionId}: Skipped duplicate {step.Action} step for {step.ElementSelector}");
+            return session.Steps.LastOrDefault(s => 
+                s.Action == step.Action && 
+                s.ElementSelector == step.ElementSelector) ?? step;
         }
 
         step.Order = session.Steps.Count;
